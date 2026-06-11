@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",
-    "deploy": "wrangler deploy"
+    "deploy": "wrangler deploy --non-interactive"
   },
   "devDependencies": {
     "wrangler": "^3.57.1"
