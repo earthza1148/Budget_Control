@@ -1,0 +1,13 @@
+{
+  "name": "bur-cost-control-dashboard",
+  "version": "1.0.0",
+  "description": "Bangkok University Cost Control Dashboard with Netlify Blobs Sync",
+  "main": "index.html",
+  "type": "module",
+  "scripts": {
+    "dev": "netlify dev"
+  },
+  "dependencies": {
+    "@netlify/blobs": "^7.0.0"
+  }
+}

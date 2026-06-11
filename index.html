@@ -1,0 +1,4094 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BU Renovation Package Cost Dashboard</title>
+    <!-- Google Fonts: Outfit (modern numbers) and Sarabun (clean Thai text) -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- SheetJS Excel Parser CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+    <style>
+        :root {
+            --bg-color: #080c14;
+            --card-bg: rgba(13, 20, 35, 0.75);
+            --card-border: rgba(255, 255, 255, 0.07);
+            --text-main: #f3f4f6;
+            --text-muted: #9ca3af;
+            --primary: #6366f1;
+            --primary-glow: rgba(99, 102, 241, 0.2);
+            --success: #10b981;
+            --success-glow: rgba(16, 185, 129, 0.15);
+            --danger: #f43f5e;
+            --danger-glow: rgba(244, 63, 94, 0.15);
+            --warning: #fb923c;
+            --warning-glow: rgba(251, 146, 60, 0.15);
+            --info: #06b6d4;
+            --info-glow: rgba(6, 182, 212, 0.15);
+            
+            --font-numbers: 'Outfit', sans-serif;
+            --font-thai: 'Sarabun', 'Outfit', sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.15) 0px, transparent 55%),
+                radial-gradient(at 50% 0%, rgba(6, 182, 212, 0.1) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(16, 185, 129, 0.05) 0px, transparent 50%);
+            background-attachment: fixed;
+            color: var(--text-main);
+            font-family: var(--font-thai);
+            min-height: 100vh;
+            padding: 24px;
+            overflow-x: hidden;
+        }
+
+        /* Prevent background scrolling when modal is active */
+        body.modal-open {
+            overflow: hidden;
+            height: 100vh;
+        }
+
+        /* Scrollbar Styling */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.3);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(99, 102, 241, 0.25);
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(99, 102, 241, 0.5);
+        }
+
+        /* Container Layout */
+        .dashboard-container {
+            max-width: 1600px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        /* Header Style */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--card-bg);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--card-border);
+            padding: 20px 28px;
+            border-radius: 18px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+        }
+
+        .header-title-area h1 {
+            font-size: 24px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #fff 40%, var(--text-muted) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -0.5px;
+            margin-bottom: 4px;
+        }
+
+        .header-title-area p {
+            color: var(--text-muted);
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .status-pill {
+            background: var(--success-glow);
+            color: var(--success);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            padding: 2px 8px;
+            border-radius: 99px;
+            font-size: 11px;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        /* Action Buttons & Upload */
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .dropzone {
+            border: 2px dashed rgba(99, 102, 241, 0.3);
+            background: rgba(99, 102, 241, 0.02);
+            border-radius: 12px;
+            padding: 10px 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+            position: relative;
+            transition: all 0.3s;
+        }
+
+        .dropzone:hover, .dropzone.dragover {
+            border-color: var(--primary);
+            background: rgba(99, 102, 241, 0.08);
+            box-shadow: 0 0 15px rgba(99, 102, 241, 0.2);
+        }
+
+        .dropzone input[type="file"] {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            opacity: 0;
+            cursor: pointer;
+        }
+
+        .dropzone-text {
+            text-align: left;
+        }
+
+        .dropzone-text span {
+            display: block;
+            font-size: 13px;
+            font-weight: 550;
+        }
+
+        .dropzone-text small {
+            display: block;
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        .btn {
+            background: linear-gradient(135deg, var(--primary) 0%, #4f46e5 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            padding: 12px 20px;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
+            transition: all 0.2s ease;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(99, 102, 241, 0.5);
+            background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--card-border);
+            color: var(--text-main);
+            box-shadow: none;
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.08);
+            box-shadow: none;
+        }
+
+        /* KPI Cards Grid */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+        }
+
+        @media(min-width: 1400px) {
+            .kpi-grid {
+                grid-template-columns: repeat(6, 1fr);
+            }
+        }
+
+        .kpi-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--card-border);
+            border-radius: 18px;
+            padding: 24px;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            transition: all 0.3s ease;
+        }
+
+        .kpi-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4);
+            border-color: rgba(255, 255, 255, 0.12);
+        }
+
+        .kpi-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; width: 4px; height: 100%;
+            background: var(--primary);
+        }
+
+        .kpi-card.kpi-success::before { background: var(--success); }
+        .kpi-card.kpi-danger::before { background: var(--danger); }
+        .kpi-card.kpi-warning::before { background: var(--warning); }
+        .kpi-card.kpi-info::before { background: var(--info); }
+
+        .kpi-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: var(--text-muted);
+            font-size: 13px;
+            font-weight: 500;
+            margin-bottom: 12px;
+        }
+
+        .kpi-icon {
+            font-size: 18px;
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--primary-glow);
+            color: var(--primary);
+        }
+
+        .kpi-card.kpi-success .kpi-icon { background: var(--success-glow); color: var(--success); }
+        .kpi-card.kpi-danger .kpi-icon { background: var(--danger-glow); color: var(--danger); }
+        .kpi-card.kpi-warning .kpi-icon { background: var(--warning-glow); color: var(--warning); }
+        .kpi-card.kpi-info .kpi-icon { background: var(--info-glow); color: var(--info); }
+
+        .kpi-value {
+            font-family: var(--font-numbers);
+            font-size: 26px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            margin-bottom: 8px;
+        }
+
+        .kpi-footer {
+            font-size: 12px;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .kpi-footer i {
+            font-size: 11px;
+        }
+
+        .trend-up { color: var(--success); }
+        .trend-down { color: var(--danger); }
+
+        /* Secondary Progress Bar in KPI */
+        .kpi-progress-bar {
+            width: 100%;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 2px;
+            margin: 8px 0;
+            overflow: hidden;
+        }
+
+        .kpi-progress-fill {
+            height: 100%;
+            background: var(--primary);
+            border-radius: 2px;
+        }
+
+        .kpi-card.kpi-success .kpi-progress-fill { background: var(--success); }
+        .kpi-card.kpi-danger .kpi-progress-fill { background: var(--danger); }
+        .kpi-card.kpi-warning .kpi-progress-fill { background: var(--warning); }
+        .kpi-card.kpi-info .kpi-progress-fill { background: var(--info); }
+
+        .kpi-sub-stats {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        /* Dashboard Middle Row: 3 Column Layout (Bars, Pie Chart, Alerts) */
+        .middle-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr;
+            gap: 20px;
+        }
+
+        .panel {
+            background: var(--card-bg);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--card-border);
+            border-radius: 18px;
+            padding: 24px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .panel-title {
+            font-size: 17px;
+            font-weight: 650;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .panel-title i {
+            color: var(--primary);
+        }
+
+        /* PREMIUM Progress Bar v1.8 (Seamless blending, click opens modal) */
+        .custom-bar-row {
+            padding: 10px 12px;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.01);
+            border: 1px solid transparent;
+            margin-bottom: 6px;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .custom-bar-row:hover {
+            background: rgba(255, 255, 255, 0.03);
+            border-color: rgba(99, 102, 241, 0.2);
+            transform: translateX(8px);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .custom-bar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+            font-size: 13px;
+        }
+
+        .custom-bar-left {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .custom-bar-code-badge {
+            background: rgba(99, 102, 241, 0.12);
+            border: 1px solid rgba(99, 102, 241, 0.25);
+            color: #a5b4fc;
+            font-family: var(--font-numbers);
+            font-weight: 700;
+            padding: 2px 10px;
+            border-radius: 6px;
+            font-size: 11px;
+            min-width: 38px;
+            text-align: center;
+            transition: all 0.3s;
+        }
+
+        .custom-bar-row:hover .custom-bar-code-badge {
+            background: var(--primary);
+            color: white;
+            box-shadow: 0 0 8px var(--primary);
+        }
+
+        .custom-bar-name {
+            font-weight: 650;
+            color: var(--text-main);
+            letter-spacing: -0.2px;
+        }
+
+        .custom-bar-right {
+            font-family: var(--font-numbers);
+            color: #94a3b8;
+            font-size: 12px;
+        }
+
+        .custom-bar-right strong {
+            color: var(--text-main);
+        }
+
+        .custom-bar-track {
+            position: relative;
+            height: 18px;
+            background: rgba(10, 15, 26, 0.85);
+            border-radius: 99px;
+            overflow: visible; /* Allows ceiling ticks to stick out */
+            border: 1px solid rgba(255, 255, 255, 0.02);
+            box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.6);
+        }
+
+        /* Seamless layout: wrapper masks sub-segments with rounded corners */
+        .custom-bar-fills-wrapper {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            border-radius: 99px;
+        }
+
+        .custom-bar-fill {
+            position: absolute;
+            top: 0;
+            height: 100%;
+            border-radius: 0; /* REMOVED: segments connect seamlessly without gaps */
+            box-shadow: inset 0 4px 6px rgba(255, 255, 255, 0.1);
+        }
+
+        .fill-certified {
+            background: linear-gradient(90deg, #059669 0%, #10b981 100%);
+            z-index: 1;
+        }
+
+        .fill-committed {
+            background: linear-gradient(90deg, #2563eb 0%, #3b82f6 100%);
+            z-index: 1;
+        }
+
+        .fill-over {
+            background: repeating-linear-gradient(
+                45deg,
+                #f43f5e,
+                #f43f5e 8px,
+                #be123c 8px,
+                #be123c 16px
+            );
+            z-index: 1;
+        }
+
+        .custom-bar-ceiling {
+            position: absolute;
+            top: -4px;
+            width: 3px;
+            height: 26px;
+            background: #ffffff;
+            box-shadow: 0 0 8px #ffffff, 0 0 15px rgba(99, 102, 241, 0.8);
+            z-index: 3;
+            border-radius: 2px;
+        }
+
+        /* Risk Alerts Panel */
+        .risk-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            flex-grow: 1;
+            overflow-y: auto;
+            padding-right: 4px;
+        }
+
+        .risk-item {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            border-radius: 12px;
+            padding: 12px 14px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-left: 4px solid var(--danger);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .risk-item:hover {
+            background: rgba(244, 63, 94, 0.06);
+            border-color: rgba(244, 63, 94, 0.2);
+            transform: translateX(4px);
+        }
+
+        .risk-item-info {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .risk-item-code {
+            font-family: var(--font-numbers);
+            font-size: 11px;
+            font-weight: 700;
+            background: var(--danger-glow);
+            color: #fca5a5;
+            padding: 1px 6px;
+            border-radius: 4px;
+            width: max-content;
+        }
+
+        .risk-item-name {
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .risk-item-finance {
+            display: flex;
+            gap: 8px;
+            font-size: 10.5px;
+            color: var(--text-muted);
+        }
+
+        .risk-item-variance {
+            text-align: right;
+        }
+
+        .risk-item-diff {
+            color: var(--danger);
+            font-family: var(--font-numbers);
+            font-size: 15px;
+            font-weight: 700;
+        }
+
+        .risk-item-pct {
+            font-size: 10.5px;
+            color: var(--text-muted);
+        }
+
+        .no-alerts {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            color: var(--text-muted);
+            height: 100%;
+            padding: 40px 0;
+            text-align: center;
+        }
+
+        .no-alerts i {
+            font-size: 48px;
+            color: var(--success);
+            opacity: 0.5;
+        }
+
+        /* Filter Controls */
+        .filter-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .search-box {
+            position: relative;
+            flex-grow: 1;
+            max-width: 400px;
+        }
+
+        .search-box i {
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+        }
+
+        .search-box input {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--card-border);
+            color: white;
+            border-radius: 10px;
+            padding: 10px 14px 10px 40px;
+            font-size: 14px;
+            font-family: var(--font-thai);
+        }
+
+        .search-box input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 10px rgba(99, 102, 241, 0.2);
+            background: rgba(255, 255, 255, 0.06);
+        }
+
+        .filter-tabs {
+            display: flex;
+            gap: 8px;
+        }
+
+        .filter-tab {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--card-border);
+            color: var(--text-muted);
+            padding: 8px 16px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .filter-tab:hover {
+            color: var(--text-main);
+            background: rgba(255, 255, 255, 0.06);
+        }
+
+        .filter-tab.active {
+            background: var(--primary-glow);
+            border-color: var(--primary);
+            color: white;
+        }
+
+        /* Sticky Headers & Cost Table View (REMOVED max-height scroll limit inside wrapper) */
+        .table-wrapper {
+            overflow: visible; /* Make sticky headers work relative to viewport */
+            border-radius: 12px;
+            border: 1px solid var(--card-border);
+            position: relative;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+            font-size: 13px;
+        }
+
+        /* Sticky header applied relative to page scroll (Viewport top) */
+        thead th {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            background: #080c14; /* matches page background to hide overlap */
+            color: var(--text-muted);
+            font-weight: 600;
+            padding: 14px 16px;
+            font-size: 12px;
+            text-transform: uppercase;
+            border-bottom: 2px solid var(--card-border);
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.6);
+        }
+
+        td {
+            padding: 12px 16px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+            vertical-align: middle;
+        }
+
+        .num-col {
+            font-family: var(--font-numbers);
+            text-align: right;
+            font-size: 14px;
+        }
+
+        /* Table Row Hierarchy */
+        tr.row-division {
+            background: rgba(30, 41, 59, 0.45);
+            font-weight: 700;
+        }
+        
+        tr.row-division td {
+            font-size: 14px;
+            border-bottom: 2px solid rgba(99, 102, 241, 0.25);
+            color: #a5b4fc;
+            padding: 14px 16px;
+        }
+
+        tr.row-subdivision {
+            background: rgba(255, 255, 255, 0.01);
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        tr.row-subdivision:hover {
+            background: rgba(99, 102, 241, 0.12);
+            box-shadow: inset 0 0 10px rgba(99, 102, 241, 0.1);
+        }
+
+        tr.row-subdivision td {
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            font-size: 13px;
+        }
+
+        .badge {
+            font-size: 11px;
+            font-weight: 600;
+            padding: 2px 8px;
+            border-radius: 6px;
+            display: inline-block;
+            text-align: center;
+        }
+
+        .badge-success { background: var(--success-glow); color: var(--success); border: 1px solid rgba(16, 185, 129, 0.15); }
+        .badge-danger { background: var(--danger-glow); color: var(--danger); border: 1px solid rgba(239, 68, 68, 0.15); }
+        .badge-warning { background: var(--warning-glow); color: var(--warning); border: 1px solid rgba(251, 146, 60, 0.15); }
+        .badge-info { background: var(--info-glow); color: var(--info); border: 1px solid rgba(6, 182, 212, 0.15); }
+        .badge-gray { background: rgba(255, 255, 255, 0.05); color: var(--text-muted); border: 1px solid rgba(255, 255, 255, 0.05); }
+
+        .var-saving {
+            color: var(--success);
+        }
+        
+        .var-overrun {
+            color: var(--danger);
+            font-weight: 600;
+        }
+
+        /* Compact progress bars inside table */
+        .table-progress {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            width: 120px;
+        }
+
+        .table-progress-bar {
+            flex-grow: 1;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.06);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .table-progress-fill {
+            height: 100%;
+            border-radius: 3px;
+        }
+
+        .table-progress-text {
+            font-family: var(--font-numbers);
+            font-size: 11px;
+            width: 32px;
+            text-align: right;
+            font-weight: 500;
+        }
+
+        /* Popup Detail Modal */
+        .modal-backdrop {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(8, 12, 20, 0.85);
+            backdrop-filter: blur(12px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .modal-backdrop.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        
+        .modal-content {
+            background: #0b101b;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            width: 90%;
+            max-width: 1250px;
+            max-height: 85vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.85);
+            display: flex;
+            flex-direction: column;
+            transform: scale(0.94);
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .modal-backdrop.active .modal-content {
+            transform: scale(1);
+        }
+        
+        .modal-header {
+            padding: 22px 30px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.01);
+        }
+        
+        .modal-header h2 {
+            font-size: 21px;
+            font-weight: 700;
+            color: var(--text-main);
+            letter-spacing: -0.3px;
+        }
+        
+        .modal-close {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            font-size: 32px;
+            cursor: pointer;
+            line-height: 1;
+            transition: color 0.2s;
+        }
+        
+        .modal-close:hover {
+            color: var(--danger);
+        }
+        
+        .modal-body {
+            padding: 24px 30px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+        
+        .modal-kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 16px;
+        }
+        
+        .modal-kpi-card {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            border-radius: 12px;
+            padding: 18px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        
+        .modal-kpi-card small {
+            color: var(--text-muted);
+            font-size: 12px;
+        }
+        
+        .modal-kpi-card strong {
+            font-family: var(--font-numbers);
+            font-size: 19px;
+            color: var(--text-main);
+        }
+
+        .modal-body .table-wrapper {
+            max-height: none; /* Expand fully to avoid nested scrolling */
+            overflow-y: visible;
+        }
+
+        .modal-body thead th {
+            background: #0b101b; /* matches modal background */
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        /* SVG Donut Chart styles */
+        circle, path {
+            transition: stroke-width 0.3s, stroke-dashoffset 0.5s ease-out;
+        }
+        circle:hover, path:hover {
+            stroke-width: 26 !important; /* Thicker hover effect for pie chart slice */
+        }
+
+        /* Budget Share Pie Chart vertical Legend styling */
+        .pie-chart-container {
+            display: flex;
+            flex-direction: column; /* Donut on top, legend stacked below */
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+            width: 100%;
+        }
+
+        .legend-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 4px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            font-size: 13px;
+            transition: background 0.2s;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+
+        .legend-row:hover {
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        .legend-row:last-child {
+            border-bottom: none;
+        }
+
+        .legend-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .legend-color-box {
+            width: 12px;
+            height: 12px;
+            border-radius: 3px;
+            flex-shrink: 0;
+        }
+
+        .legend-name {
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        .legend-pct {
+            font-family: var(--font-numbers);
+            font-weight: 700;
+            color: var(--text-main);
+        }
+
+        /* Blinking row highlight animation (Blinks exactly 3 times) */
+        @keyframes row-flash-animation {
+            0%, 100% { 
+                background-color: rgba(244, 63, 94, 0.45) !important; 
+                box-shadow: inset 0 0 15px rgba(244, 63, 94, 0.7) !important;
+                color: #ffffff !important;
+            }
+            50% { 
+                background-color: transparent !important; 
+                box-shadow: none !important;
+                color: inherit !important;
+            }
+        }
+        tr.row-flash td {
+            animation: row-flash-animation 0.7s ease-in-out 3;
+        }
+
+        /* Custom Legend for Progress Bars */
+        .custom-legend {
+            display: flex;
+            justify-content: center;
+            gap: 16px;
+            margin-top: 16px;
+            font-size: 11.5px;
+            color: var(--text-muted);
+            flex-wrap: wrap;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .legend-color {
+            width: 12px;
+            height: 12px;
+            border-radius: 3px;
+            flex-shrink: 0;
+        }
+
+        .legend-certified {
+            background: linear-gradient(90deg, #059669 0%, #10b981 100%);
+        }
+
+        .legend-committed {
+            background: linear-gradient(90deg, #2563eb 0%, #3b82f6 100%);
+        }
+
+        .legend-over {
+            background: repeating-linear-gradient(
+                45deg,
+                #f43f5e,
+                #f43f5e 4px,
+                #be123c 4px,
+                #be123c 8px
+            );
+        }
+
+        .legend-ceiling {
+            width: 3px;
+            height: 14px;
+            background: #ffffff;
+            box-shadow: 0 0 6px #ffffff;
+            border-radius: 1px;
+        }
+
+        /* Footer styling */
+        footer {
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 12px;
+            margin-top: 24px;
+            padding: 16px 0;
+            border-top: 1px solid var(--card-border);
+        }
+
+        .code-lbl {
+            font-family: var(--font-numbers);
+            font-weight: 600;
+            color: var(--text-muted);
+        }
+
+        /* Large Screen Media Query adjustments */
+        @media(max-width: 1200px) {
+            .kpi-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .middle-grid {
+                grid-template-columns: 1fr;
+            }
+            .modal-kpi-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        @media(max-width: 768px) {
+            .kpi-grid {
+                grid-template-columns: 1fr;
+            }
+            header {
+                flex-direction: column;
+                gap: 16px;
+                align-items: stretch;
+            }
+            .header-actions {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .modal-kpi-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="dashboard-container">
+    
+    <!-- HEADER -->
+    <header>
+        <div class="header-title-area">
+            <h1>BANGKOK UNIVERSITY @ RANGSIT</h1>
+            <p>
+                <span>RENOVATION PACKAGE - PHASE 1 & 2</span>
+                <span class="status-pill"><i class="fa-solid fa-circle-check"></i> ดึงข้อมูลสำเร็จ</span>
+            </p>
+        </div>
+        <div class="header-actions">
+            <!-- Drag & Drop Zone -->
+            <div class="dropzone" id="dropzone">
+                <i class="fa-solid fa-file-excel fa-2x" style="color: var(--success);"></i>
+                <div class="dropzone-text">
+                    <span>ลากและวางไฟล์เพื่ออัปเดต</span>
+                    <small id="filename-lbl">อ้างอิงข้อมูลดราฟต์ล่าสุด</small>
+                </div>
+                <input type="file" id="excel-file-input" accept=".xlsx, .xls">
+            </div>
+            
+            <button class="btn" onclick="exportDashboard()">
+                <i class="fa-solid fa-file-export"></i> ส่งออกรายงาน (.html)
+            </button>
+        </div>
+    </header>
+
+    <!-- KPI CARDS GRID -->
+    <div class="kpi-grid">
+        <!-- CARD 1: BUDGET -->
+        <div class="kpi-card kpi-info">
+            <div class="kpi-header">
+                <span>งบประมาณจำลองเดิม (Budget)</span>
+                <div class="kpi-icon"><i class="fa-solid fa-wallet"></i></div>
+            </div>
+            <div class="kpi-value" id="kpi-budget">฿0.00</div>
+            <div class="kpi-footer">
+                <i class="fa-solid fa-circle-info"></i>
+                <span>งบประมาณตามที่จัดสรรในเอกสารสัญญา</span>
+            </div>
+        </div>
+
+        <!-- CARD 2: FORECAST -->
+        <div class="kpi-card" id="kpi-forecast-card">
+            <div class="kpi-header">
+                <span>ประมาณการจริงเมื่อเสร็จสิ้น (Forecast)</span>
+                <div class="kpi-icon"><i class="fa-solid fa-chart-line"></i></div>
+            </div>
+            <div class="kpi-value" id="kpi-forecast">฿0.00</div>
+            <div class="kpi-progress-bar">
+                <div class="kpi-progress-fill" id="kpi-utilization-bar" style="width: 0%"></div>
+            </div>
+            <div class="kpi-sub-stats">
+                <span>คิดเป็นเปอร์เซ็นต์งบประมาณ</span>
+                <span id="kpi-utilization-pct" style="font-family: var(--font-numbers); font-weight: 600;">0%</span>
+            </div>
+        </div>
+
+        <!-- CARD 3: VARIANCE -->
+        <div class="kpi-card" id="kpi-variance-card">
+            <div class="kpi-header">
+                <span>งบประมาณคงเหลือ / เกิน (Variance)</span>
+                <div class="kpi-icon" id="kpi-variance-icon"><i class="fa-solid fa-scale-balanced"></i></div>
+            </div>
+            <div class="kpi-value" id="kpi-variance">฿0.00</div>
+            <div class="kpi-footer" id="kpi-variance-footer">
+                <i class="fa-solid fa-circle-check"></i>
+                <span id="kpi-variance-status">สถานะปกติ</span>
+            </div>
+        </div>
+
+        <!-- CARD 4: CONTRACT LET / PAID -->
+        <div class="kpi-card kpi-warning">
+            <div class="kpi-header">
+                <span>สัญญางานแล้ว & เบิกจ่ายตามผลงาน</span>
+                <div class="kpi-icon"><i class="fa-solid fa-receipt"></i></div>
+            </div>
+            <div class="kpi-value" id="kpi-contract-let">฿0.00</div>
+            <div class="kpi-progress-bar">
+                <div class="kpi-progress-fill" id="kpi-paid-bar" style="width: 0%"></div>
+            </div>
+            <div class="kpi-sub-stats">
+                <span>เบิกจ่ายจริงตามงวดผลงาน</span>
+                <span id="kpi-certified-value" style="font-family: var(--font-numbers); font-weight: 600;">฿0.00</span>
+            </div>
+        </div>
+
+        <!-- CARD 5: BUDGET UNCOMMITTED / REMAINING TO LET -->
+        <div class="kpi-card kpi-info">
+            <div class="kpi-header">
+                <span>งบประมาณส่วนที่ยังไม่มีสัญญา</span>
+                <div class="kpi-icon"><i class="fa-solid fa-hourglass-half"></i></div>
+            </div>
+            <div class="kpi-value" id="kpi-anticipated">฿0.00</div>
+            <div class="kpi-footer">
+                <i class="fa-solid fa-circle-info"></i>
+                <span>งบประมาณคงเหลือที่ยังไม่ได้ลงนามจ้าง</span>
+            </div>
+        </div>
+
+        <!-- CARD 6: TOTAL PROJECTS / PACKAGES -->
+        <div class="kpi-card">
+            <div class="kpi-header">
+                <span>จำนวนโครงการทั้งหมด</span>
+                <div class="kpi-icon"><i class="fa-solid fa-list-check"></i></div>
+            </div>
+            <div class="kpi-value" id="kpi-total-packages">0 โครงการ</div>
+            <div class="kpi-footer">
+                <i class="fa-solid fa-circle-info"></i>
+                <span>จำนวนแพ็กเกจงานควบคุมทั้งหมด</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- MIDDLE ROW: BARS, ALERTS, PIE CHART -->
+    <div class="middle-grid">
+        <!-- Left: Subdivision Comparison Chart (Custom progress bars list, full height) -->
+        <div class="panel">
+            <div class="panel-header">
+                <div class="panel-title">
+                    <i class="fa-solid fa-chart-bar"></i>
+                    <span>Budget Control</span>
+                </div>
+            </div>
+            <div id="custom-bars-container" style="display: flex; flex-direction: column; gap: 4px;">
+                <!-- Custom bars injected here -->
+            </div>
+            <!-- Custom Chart Legend -->
+            <div class="custom-legend">
+                <div class="legend-item">
+                    <div class="legend-color legend-certified"></div>
+                    <span>Certified (Paid)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color legend-committed"></div>
+                    <span>Committed (Forecast)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-ceiling"></div>
+                    <span>Budget Ceiling</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color legend-over"></div>
+                    <span>Over Budget</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Middle: Over Budget Warnings Panel -->
+        <div class="panel">
+            <div class="panel-header">
+                <div class="panel-title" style="color: var(--danger);">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                    <span>หมวดหมู่เกินงบ (Over Budget List)</span>
+                </div>
+                <span class="badge badge-danger" id="alert-count-badge">0 หมวด</span>
+            </div>
+            <div class="risk-list" id="risk-list">
+                <!-- Risk items will be injected here -->
+            </div>
+        </div>
+
+        <!-- Right: Budget Donut Share Chart (SVG Donut Chart) -->
+        <div class="panel">
+            <div class="panel-header">
+                <div class="panel-title">
+                    <i class="fa-solid fa-chart-pie"></i>
+                    <span>Budget Allocation</span>
+                </div>
+            </div>
+            <div class="pie-chart-container">
+                <!-- SVG Donut Chart -->
+                <div id="svg-donut-container" style="position: relative; width: 230px; height: 230px; flex-shrink: 0;">
+                    <!-- SVG will be injected here -->
+                </div>
+                <!-- Legend on the right -->
+                <div id="pie-legend-container" style="display: flex; flex-direction: column; width: 100%; gap: 2px; padding-right: 4px;">
+                    <!-- Legend items injected here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- BOTTOM ROW: COST TABLE VIEW -->
+    <div class="panel">
+        <div class="panel-header">
+            <div class="panel-title">
+                <i class="fa-solid fa-table-list"></i>
+                <span>ตารางรายงานแบ่งตามประเภทงาน & แพ็กเกจรับเหมา</span>
+            </div>
+        </div>
+
+        <!-- Filter and Search controls -->
+        <div class="filter-row" id="cost-table-anchor"> <!-- Added anchor for jump link scroll -->
+            <div class="search-box">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="text" id="table-search" placeholder="ค้นหาหมวดหมู่ หรือคำอธิบาย..." oninput="handleFilterChange()">
+            </div>
+            <div class="filter-tabs" id="filter-tabs">
+                <div class="filter-tab active" data-filter="all" onclick="setFilter('all')">ทั้งหมด</div>
+                <div class="filter-tab" data-filter="overrun" onclick="setFilter('overrun')" style="color: #fca5a5;">เฉพาะที่ใช้เงินเกินงบ</div>
+                <div class="filter-tab" data-filter="A" onclick="setFilter('A')">Soft Cost (A)</div>
+                <div class="filter-tab" data-filter="B" onclick="setFilter('B')">Construction (B)</div>
+                <div class="filter-tab" data-filter="C" onclick="setFilter('C')">Direct Supply (C)</div>
+            </div>
+        </div>
+
+        <!-- Main table with STICKY headers (No scroll container) -->
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width: 80px;">รหัส</th>
+                        <th style="min-width: 250px;">รายการควบคุม / แหล่งงบประมาณ</th>
+                        <th class="num-col">งบประมาณเดิม (Budget)</th>
+                        <th class="num-col">สัญญาจ้าง (Contract Let)</th>
+                        <th class="num-col">ประมาณการจริง (Forecast)</th>
+                        <th class="num-col">ยังไม่มีสัญญา (Uncommitted)</th>
+                        <th class="num-col">ส่วนต่างงบ (Variance)</th>
+                        <th style="width: 140px; text-align: center;">การใช้งานงบ</th>
+                        <th class="num-col">เบิกตามผลงาน (Certified)</th>
+                        <th style="width: 140px; text-align: center;">Status</th>
+                    </tr>
+                </thead>
+                <tbody id="cost-table-body">
+                    <!-- Dynamic rows injected here -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- FOOTER -->
+    <footer>
+        <p>BU Renovation Budget Control System v1.8 • ออกแบบมาเพื่อควบคุมงบประมาณและเฝ้าระวังค่าใช้จ่ายบานปลาย</p>
+    </footer>
+
+</div>
+
+<!-- DETAIL POPUP MODAL -->
+<div id="detail-modal" class="modal-backdrop">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 id="modal-title">Subdivision Details</h2>
+            <button class="modal-close" onclick="closeModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <!-- Subdivision KPI summary grid -->
+            <div class="modal-kpi-grid">
+                <!-- CARD 1: BUDGET -->
+                <div class="kpi-card kpi-info">
+                    <div class="kpi-header">
+                        <span>งบประมาณจำลองเดิม (Budget)</span>
+                        <div class="kpi-icon"><i class="fa-solid fa-wallet"></i></div>
+                    </div>
+                    <div class="kpi-value" id="modal-kpi-budget" style="font-size: 20px;">฿0.00</div>
+                    <div class="kpi-footer">
+                        <i class="fa-solid fa-circle-info"></i>
+                        <span>งบประมาณของโครงการควบคุมย่อย</span>
+                    </div>
+                </div>
+
+                <!-- CARD 2: FORECAST -->
+                <div class="kpi-card" id="modal-kpi-forecast-card">
+                    <div class="kpi-header">
+                        <span>ประมาณการจริงเมื่อเสร็จสิ้น (Forecast)</span>
+                        <div class="kpi-icon"><i class="fa-solid fa-chart-line"></i></div>
+                    </div>
+                    <div class="kpi-value" id="modal-kpi-forecast" style="font-size: 20px;">฿0.00</div>
+                    <div class="kpi-progress-bar">
+                        <div class="kpi-progress-fill" id="modal-kpi-utilization-bar" style="width: 0%"></div>
+                    </div>
+                    <div class="kpi-sub-stats">
+                        <span>คิดเป็นเปอร์เซ็นต์งบประมาณ</span>
+                        <span id="modal-kpi-utilization-pct" style="font-family: var(--font-numbers); font-weight: 600;">0%</span>
+                    </div>
+                </div>
+
+                <!-- CARD 3: VARIANCE -->
+                <div class="kpi-card" id="modal-kpi-variance-card">
+                    <div class="kpi-header">
+                        <span>งบประมาณคงเหลือ / เกิน (Variance)</span>
+                        <div class="kpi-icon" id="modal-kpi-variance-icon"><i class="fa-solid fa-scale-balanced"></i></div>
+                    </div>
+                    <div class="kpi-value" id="modal-kpi-variance" style="font-size: 20px;">฿0.00</div>
+                    <div class="kpi-footer" id="modal-kpi-variance-footer">
+                        <i class="fa-solid fa-circle-check"></i>
+                        <span id="modal-kpi-variance-status">สถานะปกติ</span>
+                    </div>
+                </div>
+
+                <!-- CARD 4: CONTRACT LET / PAID -->
+                <div class="kpi-card kpi-warning">
+                    <div class="kpi-header">
+                        <span>สัญญางานแล้ว & เบิกจ่ายตามผลงาน</span>
+                        <div class="kpi-icon"><i class="fa-solid fa-receipt"></i></div>
+                    </div>
+                    <div class="kpi-value" id="modal-kpi-contract" style="font-size: 20px;">฿0.00</div>
+                    <div class="kpi-progress-bar">
+                        <div class="kpi-progress-fill" id="modal-kpi-paid-bar" style="width: 0%"></div>
+                    </div>
+                    <div class="kpi-sub-stats">
+                        <span>เบิกจ่ายจริงตามงวดผลงาน</span>
+                        <span id="modal-kpi-certified" style="font-family: var(--font-numbers); font-weight: 600;">฿0.00</span>
+                    </div>
+                </div>
+
+                <!-- CARD 5: BUDGET UNCOMMITTED / REMAINING TO LET -->
+                <div class="kpi-card kpi-info">
+                    <div class="kpi-header">
+                        <span>งบประมาณส่วนที่ยังไม่มีสัญญา</span>
+                        <div class="kpi-icon"><i class="fa-solid fa-hourglass-half"></i></div>
+                    </div>
+                    <div class="kpi-value" id="modal-kpi-uncommitted" style="font-size: 20px;">฿0.00</div>
+                    <div class="kpi-footer">
+                        <i class="fa-solid fa-circle-info"></i>
+                        <span>งบประมาณคงเหลือที่ยังไม่ได้ลงนามจ้าง</span>
+                    </div>
+                </div>
+
+                <!-- CARD 6: TOTAL ITEMS -->
+                <div class="kpi-card">
+                    <div class="kpi-header">
+                        <span>จำนวนรายการย่อยทั้งหมด</span>
+                        <div class="kpi-icon"><i class="fa-solid fa-list-check"></i></div>
+                    </div>
+                    <div class="kpi-value" id="modal-kpi-items-count" style="font-size: 20px;">0 รายการย่อย</div>
+                    <div class="kpi-footer">
+                        <i class="fa-solid fa-circle-info"></i>
+                        <span>รายการย่อยในหมวดหมู่นี้</span>
+                    </div>
+                </div>
+            </div>
+            <!-- Table of detailed items with STICKY headers -->
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width: 80px;">รหัส</th>
+                            <th>รายการควบคุมย่อย</th>
+                            <th class="num-col">งบประมาณเดิม (Budget)</th>
+                            <th class="num-col">สัญญาจ้าง (Contract Let)</th>
+                            <th class="num-col">ประมาณการจริง (Forecast)</th>
+                            <th class="num-col">ยังไม่มีสัญญา (Uncommitted)</th>
+                            <th class="num-col">ส่วนต่างงบ (Variance)</th>
+                            <th class="num-col">เบิกตามผลงาน (Certified)</th>
+                            <th style="width: 140px; text-align: center;">Status</th>
+                            <th>หมายเหตุ</th>
+                        </tr>
+                    </thead>
+                    <tbody id="modal-table-body">
+                        <!-- Items injected dynamically -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- BOOTSTRAP INITIAL DATA -->
+<script id="bootstrap-data">
+    window.INITIAL_DATA = [
+  {
+    "code": "A",
+    "name": "SOFT COST",
+    "type": "division",
+    "subdivisions": [
+      {
+        "code": "A1",
+        "name": "PHASE 1 (INCL. OVH&PRE)",
+        "type": "subdivision",
+        "items": [
+          {
+            "code": "A1.1",
+            "name": "CONSULT",
+            "type": "item",
+            "budget": 24818999.03181988,
+            "budget_alloc": 24818999.03181988,
+            "contract_let": 0,
+            "anticipated_contract": 24818999.03181988,
+            "variations_anticipated": 0,
+            "contractor_submission": null,
+            "variation_agreed": 0,
+            "forecast": 24818999.03181988,
+            "certified": 0,
+            "pct_certified": 0,
+            "outstanding": 24818999.03181988,
+            "pct_outstanding": 1,
+            "variance": 0,
+            "pct_variance": 0,
+            "remark": null
+          },
+          {
+            "code": "A1.2",
+            "name": "DESIGNER",
+            "type": "item",
+            "budget": 9615813.387743998,
+            "budget_alloc": 9615813.387743998,
+            "contract_let": 0,
+            "anticipated_contract": 9615813.387743998,
+            "variations_anticipated": 0,
+            "contractor_submission": null,
+            "variation_agreed": 0,
+            "forecast": 9615813.387743998,
+            "certified": 0,
+            "pct_certified": 0,
+            "outstanding": 9615813.387743998,
+            "pct_outstanding": 1,
+            "variance": 0,
+            "pct_variance": 0,
+            "remark": null
+          }
+        ]
+      },
+      {
+        "code": "A2",
+        "name": "PHASE 2 (INCL. OVH&PRE)",
+        "type": "subdivision",
+        "items": [
+          {
+            "code": "A2.1",
+            "name": "CONSULT",
+            "type": "item",
+            "budget": 0,
+            "budget_alloc": 0,
+            "contract_let": 0,
+            "anticipated_contract": 0,
+            "variations_anticipated": 0,
+            "contractor_submission": null,
+            "variation_agreed": 0,
+            "forecast": 0,
+            "certified": 0,
+            "pct_certified": 0,
+            "outstanding": 0,
+            "pct_outstanding": "#DIV/0!",
+            "variance": 0,
+            "pct_variance": "#DIV/0!",
+            "remark": null
+          },
+          {
+            "code": "A2.2",
+            "name": "DESIGNER",
+            "type": "item",
+            "budget": 0,
+            "budget_alloc": 0,
+            "contract_let": 0,
+            "anticipated_contract": 0,
+            "variations_anticipated": 0,
+            "contractor_submission": null,
+            "variation_agreed": 0,
+            "forecast": 0,
+            "certified": 0,
+            "pct_certified": 0,
+            "outstanding": 0,
+            "pct_outstanding": "#DIV/0!",
+            "variance": 0,
+            "pct_variance": "#DIV/0!",
+            "remark": null
+          }
+        ]
+      },
+      {
+        "code": "SUB-TOTAL FOR SOFT COST",
+        "name": "",
+        "type": "total_row",
+        "budget": 34434812.419563875,
+        "budget_alloc": 34434812.419563875,
+        "contract_let": 0,
+        "anticipated_contract": 34434812.419563875,
+        "variations_anticipated": 0,
+        "contractor_submission": 0,
+        "variation_agreed": 0,
+        "forecast": 34434812.419563875,
+        "certified": 0,
+        "pct_certified": 0,
+        "outstanding": 34434812.419563875,
+        "pct_outstanding": 1,
+        "variance": 0,
+        "pct_variance": 0,
+        "remark": null
+      }
+    ]
+  },
+  {
+    "code": "B",
+    "name": "CONSTRUCTION COST",
+    "type": "division",
+    "subdivisions": [
+      {
+        "code": "B1",
+        "name": "FAST TRACK PACKAGE",
+        "type": "subdivision",
+        "items": [
+          {
+            "code": "B1.1",
+            "name": "MAIN CONTRACTOR WORKS",
+            "type": "item",
+            "budget": 24030994.400000002,
+            "budget_alloc": 24030994.400000002,
+            "contract_let": 25950000,
+            "anticipated_contract": null,
+            "variations_anticipated": 4427363.3,
+            "contractor_submission": 762636.7,
+            "variation_agreed": 0,
+            "forecast": 31140000,
+            "certified": 23015384.41,
+            "pct_certified": 0,
+            "outstanding": 8124615.59,
+            "pct_outstanding": 0.2609060883108542,
+            "variance": -7109005.599999998,
+            "pct_variance": -0.2958265264295512,
+            "remark": null
+          },
+          {
+            "code": "B1.2",
+            "name": "C3-205 HARDWOOD FLOOR (DIRECT PURCHASE BY ZIPCODE)",
+            "type": "item",
+            "budget": 311250,
+            "budget_alloc": 311250,
+            "contract_let": 280600,
+            "anticipated_contract": null,
+            "variations_anticipated": 28060,
+            "contractor_submission": 0,
+            "variation_agreed": 0,
+            "forecast": 308660,
+            "certified": 0,
+            "pct_certified": 0,
+            "outstanding": 308660,
+            "pct_outstanding": 1,
+            "variance": 2590,
+            "pct_variance": 0.008321285140562249,
+            "remark": null
+          },
+          {
+            "code": "B1.3",
+            "name": "C1-203 SMART MEETING (DIRECT PURCHASE BY ZIPCODE)",
+            "type": "item",
+            "budget": 729750,
+            "budget_alloc": 729750,
+            "contract_let": 270000,
+            "anticipated_contract": null,
+            "variations_anticipated": 27000,
+            "contractor_submission": 0,
+            "variation_agreed": 0,
+            "forecast": 297000,
+            "certified": 0,
+            "pct_certified": 0,
+            "outstanding": 297000,
+            "pct_outstanding": 1,
+            "variance": 432750,
+            "pct_variance": 0.593011305241521,
+            "remark": null
+          },
+          {
+            "code": "B1.4",
+            "name": "LOOSE FURNITURE (DIRECT PURCHASE BY BU)",
+            "type": "item",
+            "budget": 2126250,
+            "budget_alloc": 2126250,
+            "contract_let": null,
+            "anticipated_contract": 1913625,
+            "variations_anticipated": 212625,
+            "contractor_submission": 0,
+            "variation_agreed": 0,
+            "forecast": 2126250,
+            "certified": 0,
+            "pct_certified": 0,
+            "outstanding": 2126250,
+            "pct_outstanding": 1,
+            "variance": 0,
+            "pct_variance": 0,
+            "remark": null
+          },
+          {
+            "code": "B1.5",
+            "name": "OTHER WORKS (DIRECT PURCHASE BY BU)",
+            "type": "item",
+            "budget": 1294600,
+            "budget_alloc": 1294600,
+            "contract_let": null,
+            "anticipated_contract": 1165140,
+            "variations_anticipated": 129460,
+            "contractor_submission": 0,
+            "variation_agreed": 0,
+            "forecast": 1294600,
+            "certified": 0,
+            "pct_certified": 0,
+            "outstanding": 1294600,
+            "pct_outstanding": 1,
+            "variance": 0,
+            "pct_variance": 0,
+            "remark": null
+          }
+        ]
+      },
+      {
+        "code": "SUB-TOTAL FOR FAST TRACK PACKAGE",
+        "name": "",
+        "type": "total_row",
+        "budget": 28492844.400000002,
+        "budget_alloc": 28492844.400000002,
+        "contract_let": 26500600,
+        "anticipated_contract": 3078765,
+        "variations_anticipated": 4824508.3,
+        "contractor_submission": 762636.7,
+        "variation_agreed": 0,
+        "forecast": 35166510,
+        "certified": 23015384.41,
+        "pct_certified": 0.6544688230364628,
+        "outstanding": 12151125.59,
+        "pct_outstanding": 0.3455311769635372,
+        "variance": -6673665.599999998,
+        "pct_variance": -0.23422251237226416,
+        "remark": null
+      },
+      {
+        "code": "B2",
+        "name": "GROUP 1 PACKAGE",
+        "type": "subdivision",
+        "items": [
+          {
+            "code": "B2.1",
+            "name": "MAIN CONTRACTOR WORKS",
+            "type": "item",
+            "budget": 36747221.975,
+            "budget_alloc": 36747221.975,
+            "contract_let": 25500000,
+            "anticipated_contract": null,
+            "variations_anticipated": 2211371.5100000002,
+            "contractor_submission": 338628.48999999993,
+            "variation_agreed": 0,
+            "forecast": 28050000,
+            "certified": 4446957.42,
+            "pct_certified": 0,
+            "outstanding": 23603042.58,
+            "pct_outstanding": 0.8414631935828877,
+            "variance": 8697221.975000001,
+            "pct_variance": 0.2366769923701151,
+            "remark": null
+          },
+          {
+            "code": "B2.2",
+            "name": "MEP SERVICE",
+            "type": "item",
+            "budget": 32100763.599999994,
+            "budget_alloc": 32100763.599999994,
+            "contract_let": 31000000,
+            "anticipated_contract": null,
+            "variations_anticipated": 3100000,
+            "contractor_submission": 0,
+            "variation_agreed": 0,
+            "forecast": 34100000,
+            "certified": 0,
+            "pct_certified": 0,
+            "outstanding": 34100000,
+            "pct_outstanding": 1,
+            "variance": -1999236.400000006,
+            "pct_variance": -0.06228002626080852,
+            "remark": null
+          },
+          {
+            "code": "B2.3",
+            "name": "AV SYSTEMS",
+            "type": "item",
+            "budget": 2014687,
+            "budget_alloc": 2014687,
+            "contract_let": 5773930,
+            "anticipated_contract": null,
+            "variations_anticipated": 577393,
+            "contractor_submission": 0,
+            "variation_agreed": 0,
+            "forecast": 6351323,
+            "certified": 0,
+            "pct_certified": 0,
+            "outstanding": 6351323,
+            "pct_outstanding": 1,
+            "variance": -4336636,
+            "pct_variance": -2.152511035212914,
+            "remark": null
+          },
+          {
+            "code": "B2.4",
+            "name": "LIGHTING FIXTURE (DIRECT PURCHASE BY ZIPCODE)",
+            "type": "item",
+            "budget": 1514550,
+            "budget_alloc": 1514550,
+            "contract_let": 1300000,
+            "anticipated_contract": null,
+            "variations_anticipated": 130000,
+            "contractor_submission": 0,
+            "variation_agreed": 0,
+            "forecast": 1430000,
+            "certified": 390000,
+            "pct_certified": 0,
+            "outstanding": 1040000,
+            "pct_outstanding": 0.7272727272727273,
+            "variance": 84550,
+            "pct_variance": 0.055825162589548054,
+            "remark": null
+          },
+          {
+            "code": "B2.5",
+            "name": "AIR CONDITION (DIRECT PURCHASE BY ZIPCODE)",
+            "type": "item",
+            "budget": 4460970,
+            "budget_alloc": 4460970,
+            "contract_let": 3278039,
+            "anticipated_contract": null,
+            "variations_anticipated": 327803.9,
+            "contractor_submission": 0,
+            "variation_agreed": 0,
+            "forecast": 3605842.9,
+            "certified": 1676626.8,
+            "pct_certified": 0,
+            "outstanding": 1929216.0999999999,
+            "pct_outstanding": 0.5350250006732129,
+            "variance": 855127.1000000001,
+            "pct_variance": 0.19169084302293002,
+            "remark": null
+          },
+          {
+            "code": "B2.6",
+            "name": "KITCHEN (DIRECT PURCHASE BY BU)",
+            "type": "item",
+            "budget": 38674776,
+            "budget_alloc": 38674776,
+            "contract_let": null,
+            "anticipated_contract": 34807298.4,
+            "variations_anticipated": 3867477.6,
+            "contractor_submission": 0,
+            "variation_agreed": 0,
+            "forecast": 38674776,
+            "certified": 0,
+            "pct_certified": 0,
+            "outstanding": 38674776,
+            "pct_outstanding": 1,
+            "variance": 0,
+            "pct_variance": 0,
+            "remark": null
+          },
+          {
+            "code": "B2.7",
+            "name": "LOOSE FURNITURE (DIRECT PURCHASE BY BU)",
+            "type": "item",
+            "budget": 10596020,
+            "budget_alloc": 10596020,
+            "contract_let": null,
+            "anticipated_contract": 9536418,
+            "variations_anticipated": 1059602,
+            "contractor_submission": 0,
+            "variation_agreed": 0,
+            "forecast": 10596020,
+            "certified": 0,
+            "pct_certified": 0,
+            "outstanding": 10596020,
+            "pct_outstanding": 1,
+            "variance": 0,
+            "pct_variance": 0,
+            "remark": null
+          },
+          {
+            "code": "B2.8",
+            "name": "OTHER WORKS (DIRECT PURCHASE BY BU)",
+            "type": "item",
+            "budget": 12825000,
+            "budget_alloc": 12825000,
+            "contract_let": null,
+            "anticipated_contract": 11542500,
+            "variations_anticipated": 1282500,
+            "contractor_submission": 0,
+            "variation_agreed": 0,
+            "forecast": 12825000,
+            "certified": 0,
+            "pct_certified": 0,
+            "outstanding": 12825000,
+            "pct_outstanding": 1,
+            "variance": 0,
+            "pct_variance": 0,
+            "remark": null
+          }
+        ]
+      },
+      {
+        "code": "SUB-TOTAL FOR GROUP 1 PACKAGE",
+        "name": "",
+        "type": "total_row",
+        "budget": 138933988.575,
+        "budget_alloc": 138933988.575,
+        "contract_let": 66851969,
+        "anticipated_contract": 55886216.4,
+        "variations_anticipated": 12556148.01,
+        "contractor_submission": 338628.48999999993,
+        "variation_agreed": 0,
+        "forecast": 135632961.9,
+        "certified": 6513584.22,
+        "pct_certified": 0.04802360819048072,
+        "outstanding": 129119377.68,
+        "pct_outstanding": 0.9519763918095193,
+        "variance": 3301026.6749999956,
+        "pct_variance": 0.023759676871423153,
+        "remark": null
+      },
+      {
+        "code": "B3",
+        "name": "C5 BUILDING",
+        "type": "subdivision",
+        "items": [
+          {
+            "code": "B3.1",
+            "name": "MAIN CONTRACTOR WORKS",
+            "type": "item",
+            "budget": 34567769.400000006,
+            "budget_alloc": 34567769.400000006,
+            "contract_let": 26000000,
+            "anticipated_contract": null,
+            "variations_anticipated": 3456776.940000001,
+            "contractor_submission": 0,
+            "variation_agreed": 0,
+            "forecast": 29456776.94,
+            "certified": 0,
+            "pct_certified": 0,
+            "outstanding": 29456776.94,
+            "pct_outstanding": 1,
+            "variance": 5110992.460000005,
+            "pct_variance": 0.14785427433451936,
+            "remark": null
+          },
+          {
+            "code": "B3.2",
+            "name": "AV SYSTEMS - DOLBY CERTIFICATED",
+            "type": "item",
+            "budget": 23538000,
+            "budget_alloc": 23538000,
+            "contract_let": 19861680,
+            "anticipated_contract": null,
+            "variations_anticipated": 1986168,
+            "contractor_submission": 0,
+            "variation_agreed": 0,
+            "forecast": 21847848,
+            "certified": 0,
+            "pct_certified": 0,
+            "outstanding": 21847848,
+            "pct_outstanding": 1,
+            "variance": 1690152,
+            "pct_variance": 0.07180525108335457,
+            "remark": null
+          },
+          {
+            "code": "B3.3",
+            "name": "LOOSE FURNITURE (DIRECT PURCHASE BY BU)",
+            "type": "item",
+            "budget": 4069800,
+            "budget_alloc": 4069800,
+            "contract_let": null,
+            "anticipated_contract": 3662820,
+            "variations_anticipated": 406980,
+            "contractor_submission": 0,
+            "variation_agreed": 0,
+            "forecast": 4069800,
+            "certified": 0,
+            "pct_certified": 0,
+            "outstanding": 4069800,
+            "pct_outstanding": 1,
+            "variance": 0,
+            "pct_variance": 0,
+            "remark": null
+          },
+          {
+            "code": "B3.4",
+            "name": "OTHER WORKS (DIRECT PURCHASE BY BU)",
+            "type": "item",
+            "budget": 51832330,
+            "budget_alloc": 51832330,
+            "contract_let": null,
+            "anticipated_contract": 46649097,
+            "variations_anticipated": 5183233,
+            "contractor_submission": 0,
+            "variation_agreed": 0,
+            "forecast": 51832330,
+            "certified": 0,
+            "pct_certified": 0,
+            "outstanding": 51832330,
+            "pct_outstanding": 1,
+            "variance": 0,
+            "pct_variance": 0,
+            "remark": null
+          }
+        ]
+      },
+      {
+        "code": "SUB-TOTAL FOR C5 BUILDING",
+        "name": "",
+        "type": "total_row",
+        "budget": 114007899.4,
+        "budget_alloc": 114007899.4,
+        "contract_let": 45861680,
+        "anticipated_contract": 50311917,
+        "variations_anticipated": 11033157.940000001,
+        "contractor_submission": 0,
+        "variation_agreed": 0,
+        "forecast": 107206754.94,
+        "certified": 0,
+        "pct_certified": 0,
+        "outstanding": 107206754.94,
+        "pct_outstanding": 1,
+        "variance": 6801144.460000005,
+        "pct_variance": 0.059655028254998306,
+        "remark": null
+      },
+      {
+        "code": "B4",
+        "name": "GROUP 3 PACKAGE",
+        "type": "subdivision",
+        "items": [
+          {
+            "code": "B4.1",
+            "name": "MAIN CONTRACTOR WORKS",
+            "type": "item",
+            "budget": 13754311.6,
+            "budget_alloc": 13754311.6,
+            "contract_let": 11800000,
+            "anticipated_contract": null,
+            "variations_anticipated": 0,
+            "contractor_submission": 0,
+            "variation_agreed": 107683.06999999999,
+            "forecast": 11907683.07,
+            "certified": 11312298.92,
+            "pct_certified": 0.9500000002939278,
+            "outstanding": 595384.1500000004,
+            "pct_outstanding": 0.049999999706072155,
+            "variance": 1846628.5299999993,
+            "pct_variance": 0.13425815727484314,
+            "remark": null
+          },
+          {
+            "code": "B4.2",
+            "name": "LOOSE FURNITURE (DIRECT PURCHASE BY BU)",
+            "type": "item",
+            "budget": 1129810,
+            "budget_alloc": 1129810,
+            "contract_let": 495770,
+            "anticipated_contract": null,
+            "variations_anticipated": 112981,
+            "contractor_submission": 0,
+            "variation_agreed": 0,
+            "forecast": 608751,
+            "certified": 0,
+            "pct_certified": 0,
+            "outstanding": 608751,
+            "pct_outstanding": 1,
+            "variance": 521059,
+            "pct_variance": 0.4611917047999221,
+            "remark": null
+          },
+          {
+            "code": "B4.3",
+            "name": "OTHER WORKS (DIRECT PURCHASE BY BU)",
+            "type": "item",
+            "budget": 2085000,
+            "budget_alloc": 2085000,
+            "contract_let": 63115,
+            "anticipated_contract": null,
+            "variations_anticipated": 208500,
+            "contractor_submission": 0,
+            "variation_agreed": 0,
+            "forecast": 271615,
+            "certified": 0,
+            "pct_certified": 0,
+            "outstanding": 271615,
+            "pct_outstanding": 1,
+            "variance": 1813385,
+            "pct_variance": 0.8697290167865708,
+            "remark": null
+          }
+        ]
+      },
+      {
+        "code": "SUB-TOTAL FOR GROUP 3 PACKAGE",
+        "name": "",
+        "type": "total_row",
+        "budget": 16969121.6,
+        "budget_alloc": 16969121.6,
+        "contract_let": 12358885,
+        "anticipated_contract": 0,
+        "variations_anticipated": 321481,
+        "contractor_submission": 0,
+        "variation_agreed": 107683.06999999999,
+        "forecast": 12788049.07,
+        "certified": 11312298.92,
+        "pct_certified": 0.8845992737498934,
+        "outstanding": 1475750.1500000004,
+        "pct_outstanding": 0.1154007262501066,
+        "variance": 4181072.5299999993,
+        "pct_variance": 0.2463929853623065,
+        "remark": null
+      },
+      {
+        "code": "B5",
+        "name": "GROUP 4 PACKAGE",
+        "type": "subdivision",
+        "items": [
+          {
+            "code": "B5.1",
+            "name": "MEP SERVICES (STAGE LIGHTING)",
+            "type": "item",
+            "budget": 16722309,
+            "budget_alloc": 9876670.31,
+            "contract_let": 4400000,
+            "anticipated_contract": null,
+            "variations_anticipated": 0,
+            "contractor_submission": 0,
+            "variation_agreed": 315000,
+            "forecast": 4715000,
+            "certified": 0,
+            "pct_certified": 0,
+            "outstanding": 4715000,
+            "pct_outstanding": 1,
+            "variance": 5161670.3100000005,
+            "pct_variance": 0.30866971241830304,
+            "remark": "Saving เยอะ เพราะปรับขอบเขตงานลง (VE)"
+          }
+        ]
+      },
+      {
+        "code": "SUB-TOTAL FOR GROUP 4 PACKAGE",
+        "name": "",
+        "type": "total_row",
+        "budget": 16722309,
+        "budget_alloc": 9876670.31,
+        "contract_let": 4400000,
+        "anticipated_contract": 0,
+        "variations_anticipated": 0,
+        "contractor_submission": 0,
+        "variation_agreed": 315000,
+        "forecast": 4715000,
+        "certified": 0,
+        "pct_certified": 0,
+        "outstanding": 4715000,
+        "pct_outstanding": 1,
+        "variance": 5161670.3100000005,
+        "pct_variance": 0.30866971241830304,
+        "remark": "ดึงงบไป Phase2 Main con + MEP มูลค่า 7 ล้าน"
+      },
+      {
+        "code": "B6",
+        "name": "GROUP 5 PACKAGE",
+        "type": "subdivision",
+        "items": [
+          {
+            "code": "B6.1",
+            "name": "MAIN CONTRACTOR WORKS",
+            "type": "item",
+            "budget": 7989552.3719999995,
+            "budget_alloc": 7989552.3719999995,
+            "contract_let": 10500000,
+            "anticipated_contract": null,
+            "variations_anticipated": -61721.60000000009,
+            "contractor_submission": 877861.6000000001,
+            "variation_agreed": 233860,
+            "forecast": 11550000,
+            "certified": 7824864.41,
+            "pct_certified": 0.6774774380952381,
+            "outstanding": 3725135.59,
+            "pct_outstanding": 0.3225225619047619,
+            "variance": -3560447.6280000005,
+            "pct_variance": -0.4456379359221504,
+            "remark": null
+          },
+          {
+            "code": "B6.2",
+            "name": "LOOSE FURNITURE (DIRECT PURCHASE BY BU)",
+            "type": "item",
+            "budget": 1802000,
+            "budget_alloc": 1802000,
+            "contract_let": null,
+            "anticipated_contract": 1621800,
+            "variations_anticipated": 180200,
+            "contractor_submission": 0,
+            "variation_agreed": 0,
+            "forecast": 1802000,
+            "certified": 0,
+            "pct_certified": 0,
+            "outstanding": 1802000,
+            "pct_outstanding": 1,
+            "variance": 0,
+            "pct_variance": 0,
+            "remark": null
+          },
+          {
+            "code": "B6.3",
+            "name": "OTHER WORKS (DIRECT PURCHASE BY BU)",
+            "type": "item",
+            "budget": 409560,
+            "budget_alloc": 409560,
+            "contract_let": null,
+            "anticipated_contract": 368604,
+            "variations_anticipated": 40956,
+            "contractor_submission": 0,
+            "variation_agreed": 0,
+            "forecast": 409560,
+            "certified": 0,
+            "pct_certified": 0,
+            "outstanding": 409560,
+            "pct_outstanding": 1,
+            "variance": 0,
+            "pct_variance": 0,
+            "remark": null
+          }
+        ]
+      },
+      {
+        "code": "SUB-TOTAL FOR GROUP 5 PACKAGE",
+        "name": "",
+        "type": "total_row",
+        "budget": 10201112.372,
+        "budget_alloc": 10201112.372,
+        "contract_let": 10500000,
+        "anticipated_contract": 1990404,
+        "variations_anticipated": 159434.3999999999,
+        "contractor_submission": 877861.6000000001,
+        "variation_agreed": 233860,
+        "forecast": 13761560,
+        "certified": 7824864.41,
+        "pct_certified": 0.5686030079438669,
+        "outstanding": 5936695.59,
+        "pct_outstanding": 0.43139699205613313,
+        "variance": -3560447.6280000005,
+        "pct_variance": -0.3490254295965519,
+        "remark": null
+      },
+      {
+        "code": "B7",
+        "name": "BU. PACKAGE",
+        "type": "subdivision",
+        "items": [
+          {
+            "code": "B7.1",
+            "name": "DEMOLITION \nWORKS",
+            "type": "item",
+            "budget": 750000,
+            "budget_alloc": 750000,
+            "contract_let": null,
+            "anticipated_contract": 675000,
+            "variations_anticipated": 75000,
+            "contractor_submission": 0,
+            "variation_agreed": 0,
+            "forecast": 750000,
+            "certified": 0,
+            "pct_certified": 0,
+            "outstanding": 750000,
+            "pct_outstanding": 1,
+            "variance": 0,
+            "pct_variance": 0,
+            "remark": null
+          },
+          {
+            "code": "B7.2",
+            "name": "STRUCTURAL \nWORKS",
+            "type": "item",
+            "budget": 0,
+            "budget_alloc": 0,
+            "contract_let": null,
+            "anticipated_contract": 0,
+            "variations_anticipated": 0,
+            "contractor_submission": 0,
+            "variation_agreed": 0,
+            "forecast": 0,
+            "certified": 0,
+            "pct_certified": 0,
+            "outstanding": 0,
+            "pct_outstanding": "#DIV/0!",
+            "variance": 0,
+            "pct_variance": "#DIV/0!",
+            "remark": null
+          },
+          {
+            "code": "B7.3",
+            "name": "ARCHITECTURAL \nWORKS",
+            "type": "item",
+            "budget": 289650,
+            "budget_alloc": 289650,
+            "contract_let": null,
+            "anticipated_contract": 260685,
+            "variations_anticipated": 28965,
+            "contractor_submission": 0,
+            "variation_agreed": 0,
+            "forecast": 289650,
+            "certified": 0,
+            "pct_certified": 0,
+            "outstanding": 289650,
+            "pct_outstanding": 1,
+            "variance": 0,
+            "pct_variance": 0,
+            "remark": null
+          },
+          {
+            "code": "B7.4",
+            "name": "INTERIOR \nWORKS",
+            "type": "item",
+            "budget": 4191152.46,
+            "budget_alloc": 4191152.46,
+            "contract_let": null,
+            "anticipated_contract": 3772037.214,
+            "variations_anticipated": 419115.24600000004,
+            "contractor_submission": 0,
+            "variation_agreed": 0,
+            "forecast": 4191152.46,
+            "certified": 0,
+            "pct_certified": 0,
+            "outstanding": 4191152.46,
+            "pct_outstanding": 1,
+            "variance": 0,
+            "pct_variance": 0,
+            "remark": null
+          },
+          {
+            "code": "B7.5",
+            "name": "MEP SERVICES",
+            "type": "item",
+            "budget": 4040914.8,
+            "budget_alloc": 4040914.8,
+            "contract_let": null,
+            "anticipated_contract": 3636823.32,
+            "variations_anticipated": 404091.48,
+            "contractor_submission": 0,
+            "variation_agreed": 0,
+            "forecast": 4040914.8,
+            "certified": 0,
+            "pct_certified": 0,
+            "outstanding": 4040914.8,
+            "pct_outstanding": 0,
+            "variance": 0,
+            "pct_variance": 0,
+            "remark": null
+          },
+          {
+            "code": "B7.6",
+            "name": "AV SYSTEMS",
+            "type": "item",
+            "budget": 2517360,
+            "budget_alloc": 2517360,
+            "contract_let": null,
+            "anticipated_contract": 2265624,
+            "variations_anticipated": 251736,
+            "contractor_submission": 0,
+            "variation_agreed": 0,
+            "forecast": 2517360,
+            "certified": 0,
+            "pct_certified": 0,
+            "outstanding": 2517360,
+            "pct_outstanding": 0,
+            "variance": 0,
+            "pct_variance": 0,
+            "remark": null
+          },
+          {
+            "code": "B7.7",
+            "name": "LOOSE FURNITURE",
+            "type": "item",
+            "budget": 1449100,
+            "budget_alloc": 1449100,
+            "contract_let": null,
+            "anticipated_contract": 1304190,
+            "variations_anticipated": 144910,
+            "contractor_submission": 0,
+            "variation_agreed": 0,
+            "forecast": 1449100,
+            "certified": 0,
+            "pct_certified": 0,
+            "outstanding": 1449100,
+            "pct_outstanding": 1,
+            "variance": 0,
+            "pct_variance": 0,
+            "remark": null
+          },
+          {
+            "code": "B7.8",
+            "name": "OTHER WORKS",
+            "type": "item",
+            "budget": 23100,
+            "budget_alloc": 23100,
+            "contract_let": null,
+            "anticipated_contract": 20790,
+            "variations_anticipated": 2310,
+            "contractor_submission": 0,
+            "variation_agreed": 0,
+            "forecast": 23100,
+            "certified": 0,
+            "pct_certified": 0,
+            "outstanding": 23100,
+            "pct_outstanding": 1,
+            "variance": 0,
+            "pct_variance": 0,
+            "remark": null
+          }
+        ]
+      },
+      {
+        "code": "SUB-TOTAL FOR BU. PACKAGE",
+        "name": "",
+        "type": "total_row",
+        "budget": 13261277.26,
+        "budget_alloc": 13261277.26,
+        "contract_let": 0,
+        "anticipated_contract": 11935149.534,
+        "variations_anticipated": 1326127.726,
+        "contractor_submission": 0,
+        "variation_agreed": 0,
+        "forecast": 13261277.26,
+        "certified": 0,
+        "pct_certified": 0,
+        "outstanding": 13261277.26,
+        "pct_outstanding": 1,
+        "variance": 0,
+        "pct_variance": 0,
+        "remark": null
+      },
+      {
+        "code": "TOTAL FOR PHASE 1 (INCL. OVH&PRE) Excluded VAT",
+        "name": "",
+        "type": "total_row",
+        "budget": 338588552.607,
+        "budget_alloc": 331742913.917,
+        "contract_let": 166473134,
+        "anticipated_contract": 123202451.934,
+        "variations_anticipated": 30220857.376,
+        "contractor_submission": 1979126.79,
+        "variation_agreed": 656543.0700000001,
+        "forecast": 322532113.17,
+        "certified": 48666131.95999999,
+        "pct_certified": 0.15088771000718643,
+        "outstanding": 273865981.21000004,
+        "pct_outstanding": 0.8491122899928136,
+        "variance": 9210800.747000001,
+        "pct_variance": 0.027203520839911517,
+        "remark": null
+      },
+      {
+        "code": "TOTAL FOR PHASE 1 (INCL. OVH&PRE) Included VAT",
+        "name": "",
+        "type": "total_row",
+        "budget": 362289751.28949,
+        "budget_alloc": 348993751.177,
+        "contract_let": 178126253.38000003,
+        "anticipated_contract": 131826623.56938002,
+        "variations_anticipated": 32336317.39232,
+        "contractor_submission": 2117665.6653,
+        "variation_agreed": 702501.0849000001,
+        "forecast": 345109361.09190005,
+        "certified": 52072761.19719999,
+        "pct_certified": 0.1508877100071864,
+        "outstanding": 293036599.89470005,
+        "pct_outstanding": 0.8491122899928136,
+        "variance": 9855556.799290001,
+        "pct_variance": 0.027203520839911517,
+        "remark": "Included VAT"
+      },
+      {
+        "code": "B8",
+        "name": "PHASE 2",
+        "type": "subdivision",
+        "items": [
+          {
+            "code": "B8.1",
+            "name": "MAIN CONTRACTOR WORKS",
+            "type": "item",
+            "budget": 36552440.29,
+            "budget_alloc": 36552440.29,
+            "contract_let": null,
+            "anticipated_contract": 32897196.261,
+            "variations_anticipated": 3655244.029,
+            "contractor_submission": null,
+            "variation_agreed": 0,
+            "forecast": 36552440.29,
+            "certified": 0,
+            "pct_certified": 0,
+            "outstanding": 36552440.29,
+            "pct_outstanding": 1,
+            "variance": 0,
+            "pct_variance": 0,
+            "remark": "ดึงงบมาจาก Group4"
+          },
+          {
+            "code": "B8.2",
+            "name": "MEP SERVICES",
+            "type": "item",
+            "budget": 18011737.2,
+            "budget_alloc": 18312073.2,
+            "contract_let": null,
+            "anticipated_contract": 16210563.48,
+            "variations_anticipated": 1801173.72,
+            "contractor_submission": null,
+            "variation_agreed": 0,
+            "forecast": 18011737.2,
+            "certified": 0,
+            "pct_certified": 0,
+            "outstanding": 18011737.2,
+            "pct_outstanding": 1,
+            "variance": 0,
+            "pct_variance": 0,
+            "remark": null
+          },
+          {
+            "code": "B8.3",
+            "name": "ACCESS CONTROL (DIRECT PURCHASE BY BU)",
+            "type": "item",
+            "budget": 300336,
+            "budget_alloc": 6764360,
+            "contract_let": null,
+            "anticipated_contract": 270302.4,
+            "variations_anticipated": 30033.600000000002,
+            "contractor_submission": null,
+            "variation_agreed": 0,
+            "forecast": 300336,
+            "certified": 0,
+            "pct_certified": 0,
+            "outstanding": 300336,
+            "pct_outstanding": 1,
+            "variance": 0,
+            "pct_variance": 0,
+            "remark": null
+          },
+          {
+            "code": "B8.4",
+            "name": "LOOSE FURNITURE (DIRECT PURCHASE BY BU)",
+            "type": "item",
+            "budget": 6764360,
+            "budget_alloc": 6764360,
+            "contract_let": null,
+            "anticipated_contract": 6087924,
+            "variations_anticipated": 676436,
+            "contractor_submission": null,
+            "variation_agreed": 0,
+            "forecast": 6764360,
+            "certified": 0,
+            "pct_certified": 0,
+            "outstanding": 6764360,
+            "pct_outstanding": 1,
+            "variance": 0,
+            "pct_variance": 0,
+            "remark": null
+          },
+          {
+            "code": "B8.5",
+            "name": "OTHER WORKS (DIRECT PURCHASE BY BU)",
+            "type": "item",
+            "budget": 1745000,
+            "budget_alloc": 1745000,
+            "contract_let": null,
+            "anticipated_contract": 1570500,
+            "variations_anticipated": 174500,
+            "contractor_submission": null,
+            "variation_agreed": 0,
+            "forecast": 1745000,
+            "certified": 0,
+            "pct_certified": 0,
+            "outstanding": 1745000,
+            "pct_outstanding": 1,
+            "variance": 0,
+            "pct_variance": 0,
+            "remark": null
+          }
+        ]
+      },
+      {
+        "code": "TOTAL FOR PHASE 2 (INCL. OVH&PRE) Excluded VAT",
+        "name": "",
+        "type": "total_row",
+        "budget": 63373873.489999995,
+        "budget_alloc": 70138233.49,
+        "contract_let": 0,
+        "anticipated_contract": 57036486.140999995,
+        "variations_anticipated": 6337387.348999999,
+        "contractor_submission": 0,
+        "variation_agreed": 0,
+        "forecast": 63373873.489999995,
+        "certified": 0,
+        "pct_certified": 0,
+        "outstanding": 63373873.489999995,
+        "pct_outstanding": 1,
+        "variance": 0,
+        "pct_variance": 0,
+        "remark": null
+      },
+      {
+        "code": "TOTAL FOR PHASE 2 (INCL. OVH&PRE) Excluded VAT",
+        "name": "",
+        "type": "total_row",
+        "budget": 67810044.6343,
+        "budget_alloc": 103724026.69,
+        "contract_let": 0,
+        "anticipated_contract": 61029040.17087,
+        "variations_anticipated": 6781004.46343,
+        "contractor_submission": 0,
+        "variation_agreed": 0,
+        "forecast": 67810044.6343,
+        "certified": 0,
+        "pct_certified": 0,
+        "outstanding": 67810044.6343,
+        "pct_outstanding": 1,
+        "variance": 0,
+        "pct_variance": 0,
+        "remark": "Included VAT"
+      }
+    ]
+  },
+  {
+    "code": "C",
+    "name": "DIRECT SUPPLY ITEMS- OTHERS",
+    "type": "division",
+    "subdivisions": [
+      {
+        "code": "C1.1",
+        "name": "LOOSE FURNITURE (Phase 1+ Pahse 2)\n\nB1.4 + B1.5",
+        "type": "item",
+        "budget": 27937340,
+        "budget_alloc": 27937340,
+        "contract_let": 495770,
+        "anticipated_contract": 24126777,
+        "variations_anticipated": 2793734,
+        "contractor_submission": 0,
+        "variation_agreed": 0,
+        "forecast": 27416281,
+        "certified": 0,
+        "pct_certified": 0,
+        "outstanding": 27416281,
+        "pct_outstanding": 1,
+        "variance": 521059,
+        "pct_variance": 0.0186509882472705,
+        "remark": null
+      },
+      {
+        "code": "C1.2",
+        "name": "OTHER WORKS (Phase 1 + Phase 2)",
+        "type": "item",
+        "budget": 70214590,
+        "budget_alloc": 70214590,
+        "contract_let": 63115,
+        "anticipated_contract": 61316631,
+        "variations_anticipated": 7021459,
+        "contractor_submission": 0,
+        "variation_agreed": 0,
+        "forecast": 68401205,
+        "certified": 0,
+        "pct_certified": 0,
+        "outstanding": 68401205,
+        "pct_outstanding": 1,
+        "variance": 1813385,
+        "pct_variance": 0.025826327548163424,
+        "remark": null
+      },
+      {
+        "code": "SUB-TOTAL FOR DIRECT SUPPLY ITEMS- OTHERS",
+        "name": "",
+        "type": "total_row",
+        "budget": 98151930,
+        "budget_alloc": 98151930,
+        "contract_let": 558885,
+        "anticipated_contract": 85443408,
+        "variations_anticipated": 9815193,
+        "contractor_submission": 0,
+        "variation_agreed": 0,
+        "forecast": 95817486,
+        "certified": 0,
+        "pct_certified": 0,
+        "outstanding": 95817486,
+        "pct_outstanding": 1,
+        "variance": 2334444,
+        "pct_variance": 0.023783984685782543,
+        "remark": null
+      }
+    ]
+  },
+  {
+    "code": "D",
+    "name": "MISCELLANEOUS",
+    "type": "division",
+    "subdivisions": [
+      {
+        "code": "D1.1",
+        "name": "MISCELLANEOUS",
+        "type": "item",
+        "budget": 0,
+        "budget_alloc": 0,
+        "contract_let": 0,
+        "anticipated_contract": 0,
+        "variations_anticipated": 0,
+        "contractor_submission": null,
+        "variation_agreed": 0,
+        "forecast": 0,
+        "certified": 0,
+        "pct_certified": 0,
+        "outstanding": 0,
+        "pct_outstanding": 0,
+        "variance": 0,
+        "pct_variance": "-",
+        "remark": null
+      },
+      {
+        "code": "D1.2",
+        "name": "OTHER WORKS",
+        "type": "item",
+        "budget": 0,
+        "budget_alloc": 0,
+        "contract_let": 0,
+        "anticipated_contract": 0,
+        "variations_anticipated": 0,
+        "contractor_submission": null,
+        "variation_agreed": 0,
+        "forecast": 0,
+        "certified": 0,
+        "pct_certified": 0,
+        "outstanding": 0,
+        "pct_outstanding": 0,
+        "variance": 0,
+        "pct_variance": "-",
+        "remark": null
+      },
+      {
+        "code": "SUB-TOTAL FOR MISCELLANEOUS",
+        "name": "",
+        "type": "total_row",
+        "budget": 0,
+        "budget_alloc": 0,
+        "contract_let": 0,
+        "anticipated_contract": 0,
+        "variations_anticipated": 0,
+        "contractor_submission": 0,
+        "variation_agreed": 0,
+        "forecast": 0,
+        "certified": 0,
+        "pct_certified": 0,
+        "outstanding": 0,
+        "pct_outstanding": 0,
+        "variance": 0,
+        "pct_variance": null,
+        "remark": null
+      }
+    ]
+  }
+];
+</script>
+
+<script>
+    // System state variables
+    let appData = [];
+    let currentFilter = 'all';
+    let currentSearch = '';
+
+    // Load initial data from Netlify Blobs (runtime upload) or static data.xlsx, with fallback
+    async function initDashboard() {
+        let filename = "260604_BUR - Cost Report No.5 - Draft.xlsx";
+        let updatetime = "";
+        
+        const statusPill = document.querySelector('.status-pill');
+        statusPill.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังซิงค์ข้อมูลล่าสุดจากคลาวด์...';
+        
+        // 1. Try fetching from Netlify Blobs (uploaded via UI)
+        try {
+            const response = await fetch('/api/get-data');
+            if (response.ok) {
+                const result = await response.json();
+                if (result.success && result.data) {
+                    appData = result.data.data;
+                    filename = result.data.file_name;
+                    
+                    const dbTime = new Date(result.data.updated_at);
+                    const dd = String(dbTime.getDate()).padStart(2, '0');
+                    const mm = String(dbTime.getMonth() + 1).padStart(2, '0');
+                    const yyyy = dbTime.getFullYear();
+                    const timeStr = dbTime.toLocaleTimeString('th-TH');
+                    updatetime = `${dd}/${mm}/${yyyy} ${timeStr}`;
+                    
+                    localStorage.setItem('bu_cost_report_data', JSON.stringify(appData));
+                    localStorage.setItem('bu_cost_report_filename', filename);
+                    localStorage.setItem('bu_cost_report_updatetime', updatetime);
+                    
+                    document.getElementById('filename-lbl').textContent = "โหลดจากคลาวด์: " + filename;
+                    statusPill.style.background = 'rgba(16, 185, 129, 0.15)';
+                    statusPill.innerHTML = '<i class="fa-solid fa-circle-check"></i> ดึงข้อมูลล่าสุดจากคลาวด์สำเร็จ (' + updatetime + ')';
+                    updateDashboardView();
+                    return;
+                }
+            }
+        } catch (e) {
+            console.log("Failed to fetch from Netlify Blobs, trying data.xlsx...", e);
+        }
+        
+        // 2. Try fetching static data.xlsx
+        try {
+            const resXlsx = await fetch('data.xlsx');
+            if (resXlsx.ok) {
+                const arrayBuffer = await resXlsx.arrayBuffer();
+                const workbook = XLSX.read(new Uint8Array(arrayBuffer), { type: 'array' });
+                
+                if (workbook.SheetNames.includes('Breakdown Details')) {
+                    const worksheet = workbook.Sheets['Breakdown Details'];
+                    const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+                    const parsed = parseExcelData(rows);
+                    
+                    if (parsed && parsed.length > 0) {
+                        appData = parsed;
+                        filename = "data.xlsx";
+                        
+                        const lastModHeader = resXlsx.headers.get('Last-Modified');
+                        if (lastModHeader) {
+                            const dbTime = new Date(lastModHeader);
+                            const dd = String(dbTime.getDate()).padStart(2, '0');
+                            const mm = String(dbTime.getMonth() + 1).padStart(2, '0');
+                            const yyyy = dbTime.getFullYear();
+                            const timeStr = dbTime.toLocaleTimeString('th-TH');
+                            updatetime = `${dd}/${mm}/${yyyy} ${timeStr}`;
+                        } else {
+                            updatetime = "ไฟล์ล่าสุดจาก Netlify";
+                        }
+                        
+                        localStorage.setItem('bu_cost_report_data', JSON.stringify(appData));
+                        localStorage.setItem('bu_cost_report_filename', filename);
+                        localStorage.setItem('bu_cost_report_updatetime', updatetime);
+                        
+                        document.getElementById('filename-lbl').textContent = "โหลดไฟล์เว็บ: data.xlsx";
+                        statusPill.style.background = 'rgba(16, 185, 129, 0.15)';
+                        statusPill.innerHTML = '<i class="fa-solid fa-circle-check"></i> ดึงข้อมูลสำเร็จจากไฟล์ data.xlsx (' + updatetime + ')';
+                        updateDashboardView();
+                        return;
+                    }
+                }
+            }
+        } catch (e) {
+            console.log("data.xlsx not found or failed to parse, checking data.json...", e);
+        }
+        
+        // 3. Try fetching static data.json
+        try {
+            const resJson = await fetch('data.json');
+            if (resJson.ok) {
+                const result = await resJson.json();
+                appData = result;
+                filename = "data.json";
+                updatetime = "ไฟล์ล่าสุดจาก Netlify";
+                
+                localStorage.setItem('bu_cost_report_data', JSON.stringify(appData));
+                localStorage.setItem('bu_cost_report_filename', filename);
+                localStorage.setItem('bu_cost_report_updatetime', updatetime);
+                
+                document.getElementById('filename-lbl').textContent = "โหลดไฟล์เว็บ: data.json";
+                statusPill.style.background = 'rgba(16, 185, 129, 0.15)';
+                statusPill.innerHTML = '<i class="fa-solid fa-circle-check"></i> ดึงข้อมูลสำเร็จจากไฟล์ data.json';
+                updateDashboardView();
+                return;
+            }
+        } catch (e) {
+            console.log("data.json not found or failed to parse, checking localStorage...", e);
+        }
+
+        // 4. Fallback to local storage or bootstrap initial data
+        const localData = localStorage.getItem('bu_cost_report_data');
+        if (localData) {
+            try {
+                appData = JSON.parse(localData);
+                filename = localStorage.getItem('bu_cost_report_filename') || "อ้างอิงข้อมูลดราฟต์ล่าสุด";
+                updatetime = localStorage.getItem('bu_cost_report_updatetime') || "";
+                document.getElementById('filename-lbl').textContent = "ข้อมูลในเบราว์เซอร์: " + filename;
+            } catch (e) {
+                appData = window.INITIAL_DATA;
+            }
+        } else {
+            appData = window.INITIAL_DATA;
+        }
+
+        if (updatetime) {
+            statusPill.innerHTML = '<i class="fa-solid fa-circle-check"></i> ไฟล์ข้อมูล: ' + filename + ' (อัปเดต: ' + updatetime + ')';
+        } else {
+            statusPill.innerHTML = '<i class="fa-solid fa-circle-check"></i> ไฟล์ข้อมูล: ' + filename;
+        }
+        statusPill.style.background = 'rgba(16, 185, 129, 0.15)';
+        updateDashboardView();
+    }
+
+    // Refresh views
+    function updateDashboardView() {
+        const summary = calculateOverallSummary(appData);
+        renderKPIs(summary);
+        renderAlerts(appData);
+        renderCharts(appData);
+        renderPieChart(appData); // Draw Pie Chart
+        renderTable(appData);
+    }
+
+    // Reset data back to default template
+    function resetToInitial() {
+        if (confirm("คุณต้องการล้างข้อมูลอัปเดตและใช้ค่าดั้งเดิมจากรายงาน Cost Report No.5 หรือไม่?")) {
+            localStorage.removeItem('bu_cost_report_data');
+            localStorage.removeItem('bu_cost_report_filename');
+            localStorage.removeItem('bu_cost_report_updatetime');
+            appData = window.INITIAL_DATA;
+            document.getElementById('filename-lbl').textContent = "ดึงข้อมูลจาก Cost Report Draft เริ่มต้น";
+            
+            const statusPill = document.querySelector('.status-pill');
+            statusPill.innerHTML = '<i class="fa-solid fa-circle-check"></i> ไฟล์ข้อมูล: 260604_BUR - Cost Report No.5 - Draft.xlsx';
+            
+            updateDashboardView();
+        }
+    }
+
+    // Formatter helpers
+    function formatMoney(amount) {
+        if (amount === null || amount === undefined || isNaN(amount)) return '-';
+        if (typeof amount === 'string') {
+            const num = parseFloat(amount);
+            if (isNaN(num)) return amount;
+            amount = num;
+        }
+        return '฿' + amount.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    // Money formatter for Millions abbreviation
+    function formatM(val) {
+        if (val === null || val === undefined || val === 0) return '0';
+        const num = parseFloat(val);
+        if (isNaN(num) || num === 0) return '0';
+        return (num / 1000000).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 }) + 'M';
+    }
+
+    // Compute sums based on parsed detailed items (leaves)
+    function calculateOverallSummary(data) {
+        let budget = 0;
+        let forecast = 0;
+        let contractLet = 0;
+        let certified = 0;
+        let totalPackages = 0;
+
+        data.forEach(div => {
+            if (div.type === 'division') {
+                div.subdivisions.forEach(sub => {
+                    if (sub.type === 'subdivision') {
+                        totalPackages++;
+                        sub.items.forEach(item => {
+                            budget += parseFloat(item.budget || 0);
+                            forecast += parseFloat(item.forecast || 0);
+                            contractLet += parseFloat(item.contract_let || 0);
+                            certified += parseFloat(item.certified || 0);
+                        });
+                    } else if (sub.type === 'item') {
+                        totalPackages++;
+                        budget += parseFloat(sub.budget || 0);
+                        forecast += parseFloat(sub.forecast || 0);
+                        contractLet += parseFloat(sub.contract_let || 0);
+                        certified += parseFloat(sub.certified || 0);
+                    }
+                });
+            }
+        });
+
+        const variance = budget - forecast;
+        const utilPct = budget > 0 ? (forecast / budget) : 0;
+        const paidPct = contractLet > 0 ? (certified / contractLet) : 0;
+
+        return {
+            budget,
+            forecast,
+            variance,
+            contractLet,
+            certified,
+            utilPct,
+            paidPct,
+            totalPackages
+        };
+    }
+
+    // Render top KPI cards
+    function renderKPIs(summary) {
+        document.getElementById('kpi-budget').textContent = formatMoney(summary.budget);
+        document.getElementById('kpi-forecast').textContent = formatMoney(summary.forecast);
+        document.getElementById('kpi-contract-let').textContent = formatMoney(summary.contractLet);
+        document.getElementById('kpi-certified-value').textContent = "เบิกจ่ายแล้ว " + formatMoney(summary.certified);
+        
+        // Render utilization progress bar in card 2
+        const utilBar = document.getElementById('kpi-utilization-bar');
+        const utilPctLabel = document.getElementById('kpi-utilization-pct');
+        const forecastCard = document.getElementById('kpi-forecast-card');
+        
+        const utilPctStr = (summary.utilPct * 100).toFixed(2) + '%';
+        utilPctLabel.textContent = utilPctStr;
+        utilBar.style.width = Math.min(summary.utilPct * 100, 100) + '%';
+
+        // Conditional styling for card 2 (if over budget)
+        if (summary.utilPct > 1.0) {
+            forecastCard.className = "kpi-card kpi-danger";
+            utilBar.style.backgroundColor = "var(--danger)";
+        } else if (summary.utilPct > 0.9) {
+            forecastCard.className = "kpi-card kpi-warning";
+            utilBar.style.backgroundColor = "var(--warning)";
+        } else {
+            forecastCard.className = "kpi-card kpi-success";
+            utilBar.style.backgroundColor = "var(--success)";
+        }
+
+        // Render variance card 3
+        const varianceVal = document.getElementById('kpi-variance');
+        const varianceCard = document.getElementById('kpi-variance-card');
+        const varianceStatus = document.getElementById('kpi-variance-status');
+        const varianceIcon = document.getElementById('kpi-variance-icon');
+        
+        varianceVal.textContent = formatMoney(summary.variance);
+        
+        if (summary.variance < 0) {
+            // Over budget
+            varianceCard.className = "kpi-card kpi-danger";
+            varianceStatus.textContent = "งบประมาณใช้เกินไป " + formatMoney(Math.abs(summary.variance));
+            document.getElementById('kpi-variance-footer').className = "kpi-footer trend-down";
+            varianceIcon.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i>';
+        } else {
+            // Under budget
+            varianceCard.className = "kpi-card kpi-success";
+            varianceStatus.textContent = "คงเหลือประหยัดได้ " + formatMoney(summary.variance);
+            document.getElementById('kpi-variance-footer').className = "kpi-footer trend-up";
+            varianceIcon.innerHTML = '<i class="fa-solid fa-circle-check"></i>';
+        }
+
+        // Render card 4 contracted progress bar
+        const paidBar = document.getElementById('kpi-paid-bar');
+        const paidPct = summary.contractLet > 0 ? (summary.certified / summary.contractLet) * 100 : 0;
+        paidBar.style.width = Math.min(paidPct, 100) + '%';
+
+        // Render card 5: anticipated (Budget - Contract Let)
+        const anticipatedVal = summary.budget - summary.contractLet;
+        document.getElementById('kpi-anticipated').textContent = formatMoney(anticipatedVal);
+
+        // Render card 6: total packages
+        document.getElementById('kpi-total-packages').textContent = summary.totalPackages + " โครงการ";
+    }
+
+    // Render overrun list
+    function renderAlerts(data) {
+        const riskList = document.getElementById('risk-list');
+        riskList.innerHTML = '';
+        let alerts = [];
+
+        // Traverse data to find overrun items
+        data.forEach(div => {
+            if (div.type === 'division') {
+                div.subdivisions.forEach(sub => {
+                    if (sub.type === 'subdivision') {
+                        sub.items.forEach(item => {
+                            const itemBudget = parseFloat(item.budget || 0);
+                            const itemForecast = parseFloat(item.forecast || 0);
+                            const itemVar = itemBudget - itemForecast;
+                            if (itemVar < 0) {
+                                alerts.push({
+                                    divCode: div.code,
+                                    subCode: sub.code,
+                                    code: item.code,
+                                    name: item.name,
+                                    budget: itemBudget,
+                                    forecast: itemForecast,
+                                    variance: itemVar,
+                                    pct: itemBudget > 0 ? (itemForecast / itemBudget - 1) : 0
+                                });
+                            }
+                        });
+                    } else if (sub.type === 'item') {
+                        const subBudget = parseFloat(sub.budget || 0);
+                        const subForecast = parseFloat(sub.forecast || 0);
+                        const subVar = subBudget - subForecast;
+                        if (subVar < 0) {
+                            alerts.push({
+                                divCode: div.code,
+                                subCode: sub.code,
+                                code: sub.code,
+                                name: sub.name,
+                                budget: subBudget,
+                                forecast: subForecast,
+                                variance: subVar,
+                                pct: subBudget > 0 ? (subForecast / subBudget - 1) : 0
+                            });
+                        }
+                    }
+                });
+            }
+        });
+
+        // Sort alerts by variance descending (worst overrun first)
+        alerts.sort((a, b) => a.variance - b.variance);
+
+        document.getElementById('alert-count-badge').textContent = alerts.length + " รายการ";
+
+        if (alerts.length === 0) {
+            riskList.innerHTML = `
+                <div class="no-alerts">
+                    <i class="fa-solid fa-circle-check"></i>
+                    <div>
+                        <strong>ยอดเยี่ยม! ไม่มีรายการใช้จ่ายเกินงบประมาณ</strong>
+                        <p style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">งบประมาณของโครงการ Renovation อยู่ในการควบคุมทั้งหมด</p>
+                    </div>
+                </div>
+            `;
+            return;
+        }
+
+        alerts.forEach(alert => {
+            const itemEl = document.createElement('div');
+            itemEl.className = 'risk-item';
+            itemEl.setAttribute('onclick', `openSubdivisionDetail('${alert.divCode}', '${alert.subCode}')`);
+            itemEl.setAttribute('title', 'คลิกเพื่อดูรายละเอียดและตาราง');
+            itemEl.innerHTML = `
+                <div class="risk-item-info">
+                    <span class="risk-item-code">${alert.code}</span>
+                    <span class="risk-item-name">${alert.name}</span>
+                    <div class="risk-item-finance">
+                        <span>งบประมาณ: ${formatMoney(alert.budget)}</span>
+                        <span>ใช้จริง: ${formatMoney(alert.forecast)}</span>
+                    </div>
+                </div>
+                <div class="risk-item-variance">
+                    <span class="risk-item-diff">${formatMoney(alert.variance)}</span>
+                    <div class="risk-item-pct"><i class="fa-solid fa-caret-up"></i> เกินงบ +${(alert.pct * 100).toFixed(1)}%</div>
+                </div>
+            `;
+            riskList.appendChild(itemEl);
+        });
+    }
+
+    // Render Custom progress bars with premium styling and animations (No scrollbar, clickable)
+    function renderCharts(data) {
+        const list = [];
+        data.forEach(div => {
+            if (div.type === 'division') {
+                div.subdivisions.forEach(sub => {
+                    let subB = 0;
+                    let subF = 0;
+                    let subCert = 0;
+                    
+                    if (sub.type === 'subdivision') {
+                        sub.items.forEach(item => {
+                            subB += parseFloat(item.budget || 0);
+                            subF += parseFloat(item.forecast || 0);
+                            subCert += parseFloat(item.certified || 0);
+                        });
+                    } else if (sub.type === 'item') {
+                        subB = parseFloat(sub.budget || 0);
+                        subF = parseFloat(sub.forecast || 0);
+                        subCert = parseFloat(sub.certified || 0);
+                    } else {
+                        return;
+                    }
+                    
+                    const over = subF > subB ? (subF - subB) : 0;
+                    const ratio = subB > 0 ? (subF / subB) : 0;
+                    const spentPct = subB > 0 ? (subCert / subB) : 0;
+                    
+                    let severity = 1;
+                    let statusText = 'ON TRACK';
+                    let statusClass = 'badge-success';
+                    
+                    if (subF > subB) {
+                        severity = 3;
+                        statusText = 'OVER BUDGET';
+                        statusClass = 'badge-danger';
+                    } else if (subF === subB && subB > 0) {
+                        severity = 2.5;
+                        statusText = 'LIMIT REACHED';
+                        statusClass = 'badge-warning';
+                    } else if (ratio >= 0.95) {
+                        severity = 2;
+                        statusText = 'NEAR LIMIT';
+                        statusClass = 'badge-warning';
+                    }
+                    
+                    list.push({
+                        code: sub.code,
+                        name: sub.name,
+                        budget: subB,
+                        forecast: subF,
+                        certified: subCert,
+                        over: over,
+                        ratio: ratio,
+                        spentPct: spentPct,
+                        severity: severity,
+                        statusText: statusText,
+                        statusClass: statusClass
+                    });
+                });
+            }
+        });
+
+        // Sort to match screenshot hierarchy
+        list.sort((a, b) => {
+            if (b.severity !== a.severity) return b.severity - a.severity;
+            if (a.severity === 3) return b.over - a.over;
+            if (a.severity === 2) {
+                if (Math.abs(b.ratio - a.ratio) > 0.001) {
+                    return b.ratio - a.ratio;
+                }
+                return a.code.localeCompare(b.code);
+            }
+            if (a.severity === 1) {
+                if (Math.abs(b.spentPct - a.spentPct) > 0.01) {
+                    return b.spentPct - a.spentPct;
+                }
+                return b.budget - a.budget;
+            }
+            return 0;
+        });
+
+        let globalMax = Math.max(...list.map(x => Math.max(x.budget, x.forecast))) * 1.05;
+
+        const container = document.getElementById('custom-bars-container');
+        container.innerHTML = '';
+
+        list.forEach(sub => {
+            const certifiedPct = (sub.certified / globalMax) * 100;
+            const overPct = (sub.over / globalMax) * 100;
+            const budgetPct = (sub.budget / globalMax) * 100;
+            
+            const committedVal = Math.max(0, sub.forecast - sub.certified - sub.over);
+            const committedPct = (committedVal / globalMax) * 100;
+            
+            const overText = sub.over > 0 ? ` | Over <strong style="color: var(--danger); font-weight: 700;">${formatM(sub.over)}</strong>` : '';
+            
+            // Get division code (first character of subdivision code)
+            const divCode = sub.code.charAt(0);
+
+            // Added onclick handler to open popup on clicking the bar row
+            container.innerHTML += `
+                <div class="custom-bar-row" onclick="openSubdivisionDetail('${divCode}', '${sub.code}')" title="คลิกเพื่อดูรายละเอียด">
+                    <div class="custom-bar-header">
+                        <div class="custom-bar-left">
+                            <span class="custom-bar-code-badge">${sub.code}</span>
+                            <span class="custom-bar-name">${sub.name}</span>
+                            <span class="badge ${sub.statusClass}">${sub.statusText}</span>
+                        </div>
+                        <div class="custom-bar-right">
+                            Budget <strong>${formatM(sub.budget)}</strong> | Spent <strong>${formatM(sub.certified)}</strong>${overText}
+                        </div>
+                    </div>
+                    <div class="custom-bar-track">
+                        <!-- Wrapper mask for seamless segment blending -->
+                        <div class="custom-bar-fills-wrapper">
+                            <div class="custom-bar-fill fill-certified" style="width: calc(${certifiedPct}% + 0.8px)"></div>
+                            <div class="custom-bar-fill fill-committed" style="left: ${certifiedPct}%; width: calc(${committedPct}% + 0.8px)"></div>
+                            <div class="custom-bar-fill fill-over" style="left: ${budgetPct}%; width: calc(${overPct}% + 0.8px)"></div>
+                        </div>
+                        <div class="custom-bar-ceiling" style="left: ${budgetPct}%"></div>
+                    </div>
+                </div>
+            `;
+        });
+    }
+
+    // Helper to clean up subdivision/package names to match screenshot
+    function cleanPackageName(code, name) {
+        if (code === 'A1') return 'Soft Cost - Phase 1';
+        if (code === 'A2') return 'Soft Cost - Phase 2';
+        if (code === 'C1.1') return 'Direct Supply - Loose Furniture';
+        if (code === 'C1.2') return 'Direct Supply - Other Works';
+        
+        // Title-case other package names
+        let cleaned = name.toLowerCase().trim();
+        return cleaned
+            .split(/\s+/)
+            .map(word => {
+                if (word === 'bu.') return 'BU.';
+                return word.charAt(0).toUpperCase() + word.slice(1);
+            })
+            .join(' ');
+    }
+
+    // SVG Arc Helpers for Pie/Donut Chart slices representation
+    function polarToCartesian(centerX, centerY, radius, angleInDegrees) {
+        var angleInRadians = angleInDegrees * Math.PI / 180.0;
+        return {
+            x: centerX + (radius * Math.cos(angleInRadians)),
+            y: centerY + (radius * Math.sin(angleInRadians))
+        };
+    }
+
+    function describeArc(x, y, radius, startAngle, endAngle) {
+        if (endAngle - startAngle >= 360) {
+            endAngle = startAngle + 359.99;
+        }
+        var start = polarToCartesian(x, y, radius, startAngle);
+        var end = polarToCartesian(x, y, radius, endAngle);
+
+        var largeArcFlag = endAngle - startAngle <= 180 ? "0" : "1";
+
+        var d = [
+            "M", start.x, start.y, 
+            "A", radius, radius, 0, largeArcFlag, 1, end.x, end.y
+        ].join(" ");
+
+        return d;       
+    }
+
+    // Render SVG Donut Chart representing package-level budget allocation
+    function renderPieChart(data) {
+        const packages = [];
+        
+        // Define a beautiful modern 12-color palette for dark theme
+        const colors = [
+            '#3b82f6', // Blue
+            '#10b981', // Emerald
+            '#fb923c', // Orange
+            '#ef4444', // Red
+            '#8b5cf6', // Purple
+            '#06b6d4', // Cyan
+            '#ec4899', // Pink
+            '#f59e0b', // Amber
+            '#14b8a6', // Teal
+            '#a855f7', // Indigo
+            '#84cc16', // Lime
+            '#f43f5e'  // Rose
+        ];
+        
+        const colorsGlow = [
+            'rgba(59, 130, 246, 0.4)',
+            'rgba(16, 185, 129, 0.4)',
+            'rgba(251, 146, 60, 0.4)',
+            'rgba(239, 68, 68, 0.4)',
+            'rgba(139, 92, 246, 0.4)',
+            'rgba(6, 182, 212, 0.4)',
+            'rgba(236, 72, 153, 0.4)',
+            'rgba(245, 158, 11, 0.4)',
+            'rgba(20, 184, 166, 0.4)',
+            'rgba(168, 85, 247, 0.4)',
+            'rgba(132, 204, 22, 0.4)',
+            'rgba(244, 63, 94, 0.4)'
+        ];
+
+        data.forEach(div => {
+            if (div.type === 'division') {
+                div.subdivisions.forEach(sub => {
+                    if (sub.type === 'subdivision') {
+                        let subB = 0;
+                        sub.items.forEach(item => {
+                            subB += parseFloat(item.budget || 0);
+                        });
+                        if (subB > 0) {
+                            packages.push({
+                                code: sub.code,
+                                rawName: sub.name,
+                                name: cleanPackageName(sub.code, sub.name),
+                                value: subB
+                            });
+                        }
+                    } else if (sub.type === 'item') {
+                        let subB = parseFloat(sub.budget || 0);
+                        if (subB > 0) {
+                            packages.push({
+                                code: sub.code,
+                                rawName: sub.name,
+                                name: cleanPackageName(sub.code, sub.name),
+                                value: subB
+                            });
+                        }
+                    }
+                });
+            }
+        });
+
+        // Sort subdivisions in descending order of budget
+        packages.sort((a, b) => b.value - a.value);
+
+        const total = packages.reduce((sum, p) => sum + p.value, 0);
+        
+        // Save the dynamic total budget of A+B for unhover state
+        window.pieChartTotalBudget = total;
+
+        const svgContainer = document.getElementById('svg-donut-container');
+        const legendContainer = document.getElementById('pie-legend-container');
+        
+        legendContainer.innerHTML = '';
+        
+        if (total === 0) {
+            svgContainer.innerHTML = '';
+            return;
+        }
+
+        const radius = 60;
+        const circ = 2 * Math.PI * radius; // ~376.99
+        
+        let svgHtml = `<svg viewBox="0 0 160 160" style="width: 100%; height: 100%; transform: rotate(-90deg);">`;
+        
+        let currentAngle = 0;
+        
+        packages.forEach((pkg, index) => {
+            const color = colors[index % colors.length];
+            const glow = colorsGlow[index % colorsGlow.length];
+            pkg.color = color; // Save color for legend/hover
+            
+            const pct = pkg.value / total;
+            const startAngle = currentAngle;
+            const endAngle = currentAngle + (pct * 360);
+            
+            const d = describeArc(80, 80, radius, startAngle, endAngle);
+            
+            svgHtml += `
+                <path d="${d}" 
+                    fill="none" 
+                    stroke="${color}" 
+                    stroke-width="20" 
+                    style="transition: stroke-width 0.3s; cursor: pointer; filter: drop-shadow(0 0 3px ${glow});"
+                    onmouseover="onPieHover('${pkg.name}', ${pkg.value}, '${color}')"
+                    onmouseout="onPieUnhover()"
+                />
+            `;
+            
+            currentAngle = endAngle;
+            
+            const pctText = (pct * 100).toFixed(1) + '%';
+            legendContainer.innerHTML += `
+                <div class="legend-row" 
+                     onmouseover="onPieHover('${pkg.name}', ${pkg.value}, '${color}')"
+                     onmouseout="onPieUnhover()">
+                    <div class="legend-left">
+                         <div class="legend-color-box" style="background-color: ${color};"></div>
+                         <span class="legend-name">${pkg.name}</span>
+                    </div>
+                    <span class="legend-pct">${pctText}</span>
+                </div>
+            `;
+        });
+        
+        svgHtml += `</svg>`;
+        
+        // Center text displaying hovered value or total budget
+        svgHtml += `
+            <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: none; text-align: center; padding: 20px;">
+                <small style="font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; transition: color 0.2s;" id="pie-center-label">Total Budget</small>
+                <strong style="font-family: var(--font-numbers); font-size: 18px; font-weight: 700; color: var(--text-main); margin-top: 4px;" id="pie-center-value">${formatM(total)}</strong>
+            </div>
+        `;
+        
+        svgContainer.innerHTML = svgHtml;
+    }
+    
+    // Pie Hover Handlers
+    window.onPieHover = function(name, value, color) {
+        const label = document.getElementById('pie-center-label');
+        label.textContent = name;
+        label.style.color = color;
+        label.style.fontSize = name.length > 22 ? '9px' : (name.length > 14 ? '11px' : '13px');
+        
+        const val = document.getElementById('pie-center-value');
+        val.textContent = formatMoney(value);
+        val.style.fontSize = '14px';
+    };
+    
+    window.onPieUnhover = function() {
+        const label = document.getElementById('pie-center-label');
+        label.textContent = 'Total Budget';
+        label.style.color = 'var(--text-muted)';
+        label.style.fontSize = '12px';
+        
+        const val = document.getElementById('pie-center-value');
+        val.textContent = formatM(window.pieChartTotalBudget || 0);
+        val.style.fontSize = '18px';
+    };
+
+    // Set filter and render
+    function setFilter(filterType) {
+        currentFilter = filterType;
+        
+        const tabs = document.querySelectorAll('.filter-tab');
+        tabs.forEach(tab => {
+            if (tab.getAttribute('data-filter') === filterType) {
+                tab.classList.add('active');
+            } else {
+                tab.classList.remove('active');
+            }
+        });
+
+        renderTable(appData);
+    }
+
+    // Handle search input change
+    function handleFilterChange() {
+        currentSearch = document.getElementById('table-search').value.toLowerCase();
+        renderTable(appData);
+    }
+
+    // Open detail popup modal for a package (subdivision)
+    function openSubdivisionDetail(divisionCode, subCode, highlightItemCode) {
+        const div = appData.find(d => d.code === divisionCode);
+        if (!div) return;
+        
+        let sub = div.subdivisions.find(s => s.code === subCode);
+        if (!sub) {
+            const directItem = div.subdivisions.find(s => s.code === subCode && (s.type === 'item' || s.type === 'subdivision'));
+            if (directItem) {
+                sub = directItem;
+            } else {
+                return;
+            }
+        }
+        
+        document.getElementById('modal-title').textContent = `${sub.code} - ${sub.name}`;
+        
+        let subBudget = 0;
+        let subForecast = 0;
+        let subContract = 0;
+        let subCertified = 0;
+        
+        const itemsList = sub.items ? sub.items : [sub];
+        
+        itemsList.forEach(item => {
+            subBudget += parseFloat(item.budget || 0);
+            subForecast += parseFloat(item.forecast || 0);
+            subContract += parseFloat(item.contract_let || 0);
+            subCertified += parseFloat(item.certified || 0);
+        });
+        
+        const subVariance = subBudget - subForecast;
+        
+        // 1. Budget
+        document.getElementById('modal-kpi-budget').textContent = formatMoney(subBudget);
+        
+        // 2. Forecast
+        document.getElementById('modal-kpi-forecast').textContent = formatMoney(subForecast);
+        const subUtilPct = subBudget > 0 ? (subForecast / subBudget) : (subForecast > 0 ? 999 : 0);
+        const subUtilBar = document.getElementById('modal-kpi-utilization-bar');
+        const subUtilPctLabel = document.getElementById('modal-kpi-utilization-pct');
+        const subForecastCard = document.getElementById('modal-kpi-forecast-card');
+        
+        subUtilPctLabel.textContent = (subBudget > 0 ? (subUtilPct * 100).toFixed(2) : '0.00') + '%';
+        subUtilBar.style.width = Math.min(subUtilPct * 100, 100) + '%';
+        if (subUtilPct > 1.0) {
+            subForecastCard.className = "kpi-card kpi-danger";
+            subUtilBar.style.backgroundColor = "var(--danger)";
+        } else if (subUtilPct > 0.9) {
+            subForecastCard.className = "kpi-card kpi-warning";
+            subUtilBar.style.backgroundColor = "var(--warning)";
+        } else {
+            subForecastCard.className = "kpi-card kpi-success";
+            subUtilBar.style.backgroundColor = "var(--success)";
+        }
+
+        // 3. Variance
+        const subVarCard = document.getElementById('modal-kpi-variance-card');
+        const subVarVal = document.getElementById('modal-kpi-variance');
+        const subVarStatus = document.getElementById('modal-kpi-variance-status');
+        const subVarIcon = document.getElementById('modal-kpi-variance-icon');
+        const subVarFooter = document.getElementById('modal-kpi-variance-footer');
+        
+        subVarVal.textContent = formatMoney(subVariance);
+        if (subVariance < 0) {
+            subVarCard.className = "kpi-card kpi-danger";
+            subVarStatus.textContent = "งบประมาณใช้เกินไป " + formatMoney(Math.abs(subVariance));
+            subVarFooter.className = "kpi-footer trend-down";
+            subVarIcon.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i>';
+        } else {
+            subVarCard.className = "kpi-card kpi-success";
+            subVarStatus.textContent = "คงเหลือประหยัดได้ " + formatMoney(subVariance);
+            subVarFooter.className = "kpi-footer trend-up";
+            subVarIcon.innerHTML = '<i class="fa-solid fa-circle-check"></i>';
+        }
+        
+        // 4. Contracted and Certified progress
+        document.getElementById('modal-kpi-contract').textContent = formatMoney(subContract);
+        const subPaidBar = document.getElementById('modal-kpi-paid-bar');
+        const subPaidPct = subContract > 0 ? (subCertified / subContract) * 100 : 0;
+        subPaidBar.style.width = Math.min(subPaidPct, 100) + '%';
+        document.getElementById('modal-kpi-certified').textContent = "เบิกจ่ายแล้ว " + formatMoney(subCertified);
+        
+        // 5. Anticipated / Uncommitted
+        const subAnticipated = subBudget - subContract;
+        document.getElementById('modal-kpi-uncommitted').textContent = formatMoney(subAnticipated);
+        
+        // 6. Total Items count
+        document.getElementById('modal-kpi-items-count').textContent = itemsList.length + " รายการย่อย";
+        
+        const modalTableBody = document.getElementById('modal-table-body');
+        modalTableBody.innerHTML = '';
+        
+        itemsList.forEach(item => {
+            const itemBudget = parseFloat(item.budget || 0);
+            const itemForecast = parseFloat(item.forecast || 0);
+            const itemContract = parseFloat(item.contract_let || 0);
+            const itemCertified = parseFloat(item.certified || 0);
+            const itemVariance = itemBudget - itemForecast;
+            
+            let statusText = 'On Track';
+            let statusClass = 'badge-success';
+            if (itemVariance < 0) {
+                statusText = 'Over Budget';
+                statusClass = 'badge-danger';
+            } else if (itemForecast === itemBudget && itemBudget > 0) {
+                statusText = 'Limit reached';
+                statusClass = 'badge-warning';
+            } else {
+                const ratio = itemBudget > 0 ? (itemForecast / itemBudget) : 0;
+                if (ratio >= 0.95 && ratio < 1.0) {
+                    statusText = 'Near Limit';
+                    statusClass = 'badge-warning';
+                }
+            }
+            
+            const itemUncommitted = itemBudget - itemContract;
+            
+            modalTableBody.innerHTML += `
+                <tr id="modal-row-${item.code}">
+                    <td class="code-lbl">${item.code}</td>
+                    <td>${item.name}</td>
+                    <td class="num-col">${formatMoney(itemBudget)}</td>
+                    <td class="num-col">${formatMoney(itemContract)}</td>
+                    <td class="num-col">${formatMoney(itemForecast)}</td>
+                    <td class="num-col ${itemUncommitted < 0 ? 'var-overrun' : 'var-saving'}">${formatMoney(itemUncommitted)}</td>
+                    <td class="num-col ${itemVariance < 0 ? 'var-overrun' : 'var-saving'}">${formatMoney(itemVariance)}</td>
+                    <td class="num-col">${formatMoney(itemCertified)}</td>
+                    <td style="text-align: center;"><span class="badge ${statusClass}">${statusText}</span></td>
+                    <td><small style="color: var(--text-muted);">${item.remark || '-'}</small></td>
+                </tr>
+            `;
+        });
+        
+        // Smooth scroll to table anchor first
+        const tableAnchor = document.getElementById('cost-table-anchor');
+        if (tableAnchor) {
+            tableAnchor.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+        
+        // Show modal and lock scroll on the background page (body) after a brief transition delay
+        setTimeout(() => {
+            document.getElementById('detail-modal').classList.add('active');
+            document.body.classList.add('modal-open');
+        }, 250);
+        
+        // Trigger blinking highlight at 500ms (when modal is fully visible and scroll complete)
+        if (highlightItemCode) {
+            setTimeout(() => {
+                const targetRow = document.getElementById(`modal-row-${highlightItemCode}`);
+                if (targetRow) {
+                    targetRow.classList.remove('row-flash');
+                    void targetRow.offsetWidth; // force DOM reflow to guarantee animation restarts
+                    targetRow.classList.add('row-flash');
+                }
+            }, 500);
+        }
+    }
+
+    function closeModal() {
+        document.getElementById('detail-modal').classList.remove('active');
+        document.body.classList.remove('modal-open');
+    }
+
+    // Close modal on click outside modal content
+    window.addEventListener('click', (e) => {
+        const modal = document.getElementById('detail-modal');
+        if (e.target === modal) {
+            closeModal();
+        }
+    });
+
+    // Render cost summary table (only top subdivision rows, collapsed by default, clicks open popups)
+    function renderTable(data) {
+        const tbody = document.getElementById('cost-table-body');
+        tbody.innerHTML = '';
+
+        data.forEach(div => {
+            if (div.type !== 'division') return;
+
+            if (currentFilter === 'A' && div.code !== 'A') return;
+            if (currentFilter === 'B' && div.code !== 'B') return;
+            if (currentFilter === 'C' && div.code !== 'C') return;
+
+            let divRowsHtml = [];
+            let divBudget = 0;
+            let divForecast = 0;
+            let divContract = 0;
+            let divCertified = 0;
+
+            div.subdivisions.forEach(sub => {
+                if (sub.type === 'subdivision') {
+                    let subBudget = 0;
+                    let subForecast = 0;
+                    let subContract = 0;
+                    let subCertified = 0;
+                    let subHasVisibleItems = false;
+
+                    sub.items.forEach(item => {
+                        const itemBudget = parseFloat(item.budget || 0);
+                        const itemForecast = parseFloat(item.forecast || 0);
+                        const itemContract = parseFloat(item.contract_let || 0);
+                        const itemCertified = parseFloat(item.certified || 0);
+                        const itemVariance = itemBudget - itemForecast;
+
+                        const matchesSearch = item.name.toLowerCase().includes(currentSearch) || 
+                                              item.code.toLowerCase().includes(currentSearch);
+                        
+                        const matchesOverrun = currentFilter === 'overrun' ? (itemVariance < 0) : true;
+
+                        if (matchesSearch && matchesOverrun) {
+                            subHasVisibleItems = true;
+                            subBudget += itemBudget;
+                            subForecast += itemForecast;
+                            subContract += itemContract;
+                            subCertified += itemCertified;
+                        }
+                    });
+
+                    if ((currentSearch || currentFilter === 'overrun') && !subHasVisibleItems) {
+                        return;
+                    }
+
+                    if (!currentSearch && currentFilter !== 'overrun') {
+                        subBudget = sub.items.reduce((sum, i) => sum + parseFloat(i.budget || 0), 0);
+                        subForecast = sub.items.reduce((sum, i) => sum + parseFloat(i.forecast || 0), 0);
+                        subContract = sub.items.reduce((sum, i) => sum + parseFloat(i.contract_let || 0), 0);
+                        subCertified = sub.items.reduce((sum, i) => sum + parseFloat(i.certified || 0), 0);
+                    }
+
+                    divBudget += subBudget;
+                    divForecast += subForecast;
+                    divContract += subContract;
+                    divCertified += subCertified;
+
+                    const subVariance = subBudget - subForecast;
+                    const subUtilRatio = subBudget > 0 ? (subForecast / subBudget) : 0;
+                    const subIsOver = subVariance < 0;
+                    const subProgressColor = subIsOver ? 'var(--danger)' : (subUtilRatio > 0.9 ? 'var(--warning)' : 'var(--success)');
+
+                    let statusText = 'On Track';
+                    let statusClass = 'badge-success';
+                    if (subVariance < 0) {
+                        statusText = 'Over Budget';
+                        statusClass = 'badge-danger';
+                    } else if (subForecast === subBudget && subBudget > 0) {
+                        statusText = 'Limit reached';
+                        statusClass = 'badge-warning';
+                    } else if (subUtilRatio >= 0.95 && subUtilRatio < 1.0) {
+                        statusText = 'Near Limit';
+                        statusClass = 'badge-warning';
+                    }
+
+                    // Onclick opens modal detail popup
+                    divRowsHtml.push(`
+                        <tr class="row-subdivision" onclick="openSubdivisionDetail('${div.code}', '${sub.code}')">
+                            <td class="code-lbl">${sub.code}</td>
+                            <td>
+                                <strong>${sub.name}</strong>
+                                <span class="badge badge-gray" style="margin-left: 8px;">
+                                    ${sub.items.length} Items
+                                </span>
+                            </td>
+                            <td class="num-col"><strong>${formatMoney(subBudget)}</strong></td>
+                            <td class="num-col">${formatMoney(subContract)}</td>
+                            <td class="num-col"><strong>${formatMoney(subForecast)}</strong></td>
+                            <td class="num-col ${(subBudget - subContract) < 0 ? 'var-overrun' : 'var-saving'}">${formatMoney(subBudget - subContract)}</td>
+                            <td class="num-col ${subIsOver ? 'var-overrun' : 'var-saving'}"><strong>${formatMoney(subVariance)}</strong></td>
+                            <td style="text-align: center;">
+                                <div class="table-progress" style="margin: 0 auto;">
+                                    <div class="table-progress-bar">
+                                        <div class="table-progress-fill" style="width: ${Math.min(subUtilRatio * 100, 100)}%; background-color: ${subProgressColor};"></div>
+                                    </div>
+                                    <span class="table-progress-text"><strong>${(subUtilRatio * 100).toFixed(0)}%</strong></span>
+                                </div>
+                            </td>
+                            <td class="num-col">${formatMoney(subCertified)}</td>
+                            <td style="text-align: center;"><span class="badge ${statusClass}">${statusText}</span></td>
+                        </tr>
+                    `);
+
+                } else if (sub.type === 'item') {
+                    const itemBudget = parseFloat(sub.budget || 0);
+                    const itemForecast = parseFloat(sub.forecast || 0);
+                    const itemContract = parseFloat(sub.contract_let || 0);
+                    const itemCertified = parseFloat(sub.certified || 0);
+                    const itemVariance = itemBudget - itemForecast;
+
+                    const matchesSearch = sub.name.toLowerCase().includes(currentSearch) || 
+                                          sub.code.toLowerCase().includes(currentSearch);
+                    
+                    const matchesOverrun = currentFilter === 'overrun' ? (itemVariance < 0) : true;
+
+                    if (matchesSearch && matchesOverrun) {
+                        divBudget += itemBudget;
+                        divForecast += itemForecast;
+                        divContract += itemContract;
+                        divCertified += itemCertified;
+
+                        const utilRatio = itemBudget > 0 ? (itemForecast / itemBudget) : 0;
+                        const isOver = itemVariance < 0;
+                        const progressColor = isOver ? 'var(--danger)' : (utilRatio > 0.9 ? 'var(--warning)' : 'var(--success)');
+
+                        let statusText = 'On Track';
+                        let statusClass = 'badge-success';
+                        if (itemVariance < 0) {
+                            statusText = 'Over Budget';
+                            statusClass = 'badge-danger';
+                        } else if (itemForecast === itemBudget && itemBudget > 0) {
+                            statusText = 'Limit reached';
+                            statusClass = 'badge-warning';
+                        } else if (utilRatio >= 0.95 && utilRatio < 1.0) {
+                            statusText = 'Near Limit';
+                            statusClass = 'badge-warning';
+                        }
+
+                        divRowsHtml.push(`
+                            <tr class="row-subdivision" onclick="openSubdivisionDetail('${div.code}', '${sub.code}')">
+                                <td class="code-lbl">${sub.code}</td>
+                                <td><strong>${sub.name}</strong></td>
+                                <td class="num-col"><strong>${formatMoney(itemBudget)}</strong></td>
+                                <td class="num-col">${formatMoney(itemContract)}</td>
+                                <td class="num-col"><strong>${formatMoney(itemForecast)}</strong></td>
+                                <td class="num-col ${(itemBudget - itemContract) < 0 ? 'var-overrun' : 'var-saving'}">${formatMoney(itemBudget - itemContract)}</td>
+                                <td class="num-col ${isOver ? 'var-overrun' : 'var-saving'}"><strong>${formatMoney(itemVariance)}</strong></td>
+                                <td style="text-align: center;">
+                                    <div class="table-progress" style="margin: 0 auto;">
+                                        <div class="table-progress-bar">
+                                            <div class="table-progress-fill" style="width: ${Math.min(utilRatio * 100, 100)}%; background-color: ${progressColor};"></div>
+                                        </div>
+                                        <span class="table-progress-text"><strong>${(utilRatio * 100).toFixed(0)}%</strong></span>
+                                    </div>
+                                </td>
+                                <td class="num-col">${formatMoney(itemCertified)}</td>
+                                <td style="text-align: center;"><span class="badge ${statusClass}">${statusText}</span></td>
+                            </tr>
+                        `);
+                    }
+                }
+            });
+
+            const divVariance = divBudget - divForecast;
+            const divUtilRatio = divBudget > 0 ? (divForecast / divBudget) : 0;
+            const divIsOver = divVariance < 0;
+
+            tbody.innerHTML += `
+                <tr class="row-division">
+                    <td style="text-align: center;"><i class="fa-solid fa-folder-open"></i></td>
+                    <td>หมวดหมู่ใหญ่: ${div.code} - ${div.name}</td>
+                    <td class="num-col">${formatMoney(divBudget)}</td>
+                    <td class="num-col">${formatMoney(divContract)}</td>
+                    <td class="num-col">${formatMoney(divForecast)}</td>
+                    <td class="num-col ${(divBudget - divContract) < 0 ? 'var-overrun' : 'var-saving'}">${formatMoney(divBudget - divContract)}</td>
+                    <td class="num-col ${divIsOver ? 'var-overrun' : 'var-saving'}">${formatMoney(divVariance)}</td>
+                    <td style="text-align: center;">
+                        <span class="badge ${divIsOver ? 'badge-danger' : 'badge-success'}">
+                            สรุปการใช้หมวด: ${(divUtilRatio * 100).toFixed(1)}%
+                        </span>
+                    </td>
+                    <td class="num-col">${formatMoney(divCertified)}</td>
+                    <td>-</td>
+                </tr>
+            `;
+
+            divRowsHtml.forEach(row => {
+                tbody.innerHTML += row;
+            });
+        });
+    }
+
+    // Drag & Drop File Upload Handler
+    const dropzone = document.getElementById('dropzone');
+    const fileInput = document.getElementById('excel-file-input');
+
+    dropzone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropzone.classList.add('dragover');
+    });
+
+    dropzone.addEventListener('dragleave', () => {
+        dropzone.classList.remove('dragover');
+    });
+
+    dropzone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropzone.classList.remove('dragover');
+        
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            handleExcelFile(files[0]);
+        }
+    });
+
+    fileInput.addEventListener('change', (e) => {
+        const files = e.target.files;
+        if (files.length > 0) {
+            handleExcelFile(files[0]);
+        }
+    });
+
+    // Parse Excel File in JavaScript
+    function handleExcelFile(file) {
+        document.getElementById('filename-lbl').textContent = "กำลังวิเคราะห์ไฟล์: " + file.name + "...";
+        
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                
+                if (!workbook.SheetNames.includes('Breakdown Details')) {
+                    alert("ข้อผิดพลาด: ไม่พบชีทชื่อ 'Breakdown Details' ในไฟล์ที่เลือก กรุณาใช้ไฟล์ตาม Format รายงานเดิม");
+                    document.getElementById('filename-lbl').textContent = "ข้อผิดพลาด: ไฟล์ไม่ถูกต้อง";
+                    return;
+                }
+                
+                const worksheet = workbook.Sheets['Breakdown Details'];
+                const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+                
+                const parsed = parseExcelData(rows);
+                if (parsed && parsed.length > 0) {
+                    const statusPill = document.querySelector('.status-pill');
+                    statusPill.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังอัปโหลดและเซฟข้อมูลเข้าคลาวด์...';
+                    statusPill.style.background = 'rgba(251, 146, 60, 0.15)';
+                    
+                    const now = new Date();
+                    const dd = String(now.getDate()).padStart(2, '0');
+                    const mm = String(now.getMonth() + 1).padStart(2, '0');
+                    const yyyy = now.getFullYear();
+                    const timeStr = now.toLocaleTimeString('th-TH');
+                    const formattedTime = `${dd}/${mm}/${yyyy} ${timeStr}`;
+
+                    // Post to Netlify Blobs via serverless function
+                    fetch('/api/upload-data', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            file_name: file.name,
+                            data: parsed
+                        })
+                    })
+                    .then(response => response.json())
+                    .then(result => {
+                        appData = parsed;
+                        
+                        // Save locally as backup
+                        localStorage.setItem('bu_cost_report_data', JSON.stringify(appData));
+                        localStorage.setItem('bu_cost_report_filename', file.name);
+                        localStorage.setItem('bu_cost_report_updatetime', formattedTime);
+                        
+                        if (result.success) {
+                            document.getElementById('filename-lbl').textContent = "อัปโหลดและแชร์ข้อมูลเรียบร้อย: " + file.name;
+                            statusPill.innerHTML = '<i class="fa-solid fa-circle-check"></i> อัปโหลดสำเร็จ ไฟล์ข้อมูลล่าสุด: ' + file.name + ' (ซิงค์: ' + formattedTime + ')';
+                            statusPill.style.background = 'rgba(16, 185, 129, 0.15)';
+                        } else {
+                            console.warn("Server failed to save database: ", result.error);
+                            document.getElementById('filename-lbl').textContent = "บันทึกในเครื่องชั่วคราว: " + file.name;
+                            statusPill.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> บันทึกเฉพาะในเบราว์เซอร์นี้ (ระบบคลาวด์ขัดข้อง)';
+                            statusPill.style.background = 'rgba(239, 68, 68, 0.15)';
+                        }
+                        updateDashboardView();
+                    })
+                    .catch(err => {
+                        console.error("Network error saving to Netlify Blobs:", err);
+                        appData = parsed;
+                        localStorage.setItem('bu_cost_report_data', JSON.stringify(appData));
+                        localStorage.setItem('bu_cost_report_filename', file.name);
+                        localStorage.setItem('bu_cost_report_updatetime', formattedTime);
+                        
+                        document.getElementById('filename-lbl').textContent = "บันทึกในเครื่องชั่วคราว: " + file.name;
+                        statusPill.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> บันทึกเฉพาะในเบราว์เซอร์นี้ (ออฟไลน์)';
+                        statusPill.style.background = 'rgba(239, 68, 68, 0.15)';
+                        
+                        updateDashboardView();
+                    });
+                } else {
+                    alert("ไม่สามารถดึงข้อมูลจากตารางได้ กรุณาตรวจสอบว่ามีข้อมูลในชีท Breakdown Details หรือไม่");
+                    document.getElementById('filename-lbl').textContent = "ข้อผิดพลาด: ดึงข้อมูลล้มเหลว";
+                }
+            } catch (err) {
+                console.error(err);
+                alert("เกิดข้อผิดพลาดในการอ่านไฟล์: " + err.message);
+                document.getElementById('filename-lbl').textContent = "ข้อผิดพลาดในการอ่านไฟล์";
+            }
+        };
+        reader.readAsArrayBuffer(file);
+    }
+
+    // JavaScript implementation of Python parser logic
+    function parseExcelData(rows) {
+        const data = [];
+        let currentDivision = null;
+        let currentSubdivision = null;
+        
+        for (let r = 9; r < rows.length; r++) {
+            const row = rows[r];
+            if (!row) continue;
+            
+            const b = row[1];
+            const c = row[2];
+            const d = row[3];
+            
+            const valOrNull = (val) => {
+                if (val === undefined || val === null) return null;
+                if (typeof val === 'string') {
+                    const cleaned = val.trim();
+                    if (cleaned === '' || cleaned === '#DIV/0!') return null;
+                    const parsedNum = parseFloat(cleaned.replace(/,/g, ''));
+                    return isNaN(parsedNum) ? cleaned : parsedNum;
+                }
+                return val;
+            };
+
+            if (b && typeof b === 'string' && b.trim().length === 1 && !c && d) {
+                currentDivision = {
+                    code: b.trim(),
+                    name: d.trim(),
+                    type: 'division',
+                    subdivisions: []
+                };
+                data.push(currentDivision);
+                currentSubdivision = null;
+                continue;
+            }
+            
+            if (b && typeof b === 'string' && !c) {
+                const bStr = b.trim();
+                if (bStr.startsWith('SUB-TOTAL') || bStr.startsWith('TOTAL')) {
+                    const totalRow = {
+                        code: bStr,
+                        name: (d && typeof d === 'string') ? d.trim() : '',
+                        type: 'total_row',
+                        budget: valOrNull(row[4]),
+                        budget_alloc: valOrNull(row[5]),
+                        contract_let: valOrNull(row[7]),
+                        anticipated_contract: valOrNull(row[8]),
+                        variations_anticipated: valOrNull(row[9]),
+                        contractor_submission: valOrNull(row[10]),
+                        variation_agreed: valOrNull(row[11]),
+                        forecast: valOrNull(row[12]),
+                        certified: valOrNull(row[14]),
+                        pct_certified: valOrNull(row[15]),
+                        outstanding: valOrNull(row[17]),
+                        pct_outstanding: valOrNull(row[18]),
+                        variance: valOrNull(row[20]),
+                        pct_variance: valOrNull(row[21]),
+                        remark: (row[23] !== undefined) ? String(row[23]).trim() : null
+                    };
+                    if (currentDivision) {
+                        currentDivision.subdivisions.push(totalRow);
+                    } else {
+                        data.push(totalRow);
+                    }
+                    continue;
+                } else {
+                    currentSubdivision = {
+                        code: bStr,
+                        name: (d && typeof d === 'string') ? d.trim() : '',
+                        type: 'subdivision',
+                        items: []
+                    };
+                    if (currentDivision) {
+                        currentDivision.subdivisions.push(currentSubdivision);
+                    } else {
+                        data.push(currentSubdivision);
+                    }
+                    continue;
+                }
+            }
+            
+            if (c && typeof c === 'string') {
+                const item = {
+                    code: c.trim(),
+                    name: (d && typeof d === 'string') ? d.trim() : '',
+                    type: 'item',
+                    budget: valOrNull(row[4]),
+                    budget_alloc: valOrNull(row[5]),
+                    contract_let: valOrNull(row[7]),
+                    anticipated_contract: valOrNull(row[8]),
+                    variations_anticipated: valOrNull(row[9]),
+                    contractor_submission: valOrNull(row[10]),
+                    variation_agreed: valOrNull(row[11]),
+                    forecast: valOrNull(row[12]),
+                    certified: valOrNull(row[14]),
+                    pct_certified: valOrNull(row[15]),
+                    outstanding: valOrNull(row[17]),
+                    pct_outstanding: valOrNull(row[18]),
+                    variance: valOrNull(row[20]),
+                    pct_variance: valOrNull(row[21]),
+                    remark: (row[23] !== undefined) ? String(row[23]).trim() : null
+                };
+                if (currentSubdivision) {
+                    currentSubdivision.items.push(item);
+                } else if (currentDivision) {
+                    currentDivision.subdivisions.push(item);
+                } else {
+                    data.push(item);
+                }
+            }
+        }
+        return data;
+    }
+
+    // Export Dashboard as a self-contained HTML file
+    function exportDashboard() {
+        const dataStr = JSON.stringify(appData);
+        const currentHtml = document.documentElement.outerHTML;
+        
+        const regex = /<script id="bootstrap-data">([\s\S]*?)<\/script>/;
+        const newHtml = currentHtml.replace(regex, `<script id="bootstrap-data">\n    window.INITIAL_DATA = ${dataStr};\n<\/script>`);
+        
+        const blob = new Blob(["<!DOCTYPE html>\n" + newHtml], { type: 'text/html;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        
+        const today = new Date().toISOString().slice(0, 10);
+        a.download = `Cost_Control_Dashboard_BU_${today}.html`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
+
+    window.addEventListener('load', initDashboard);
+
+</script>
+</body>
+</html>
