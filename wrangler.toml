@@ -8,4 +8,4 @@ binding = "ASSETS"
 
 [[kv_namespaces]]
 binding = "DASHBOARD_KV"
-id = "PUT_YOUR_KV_NAMESPACE_ID_HERE"
+id = "439d80f3f31747b9b0cd2d09348fbce5"
