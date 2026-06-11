@@ -1,4 +1,4 @@
-name = "budget_control"
+name = "budget-control"
 main = "src/index.js"
 compatibility_date = "2024-04-01"
 
