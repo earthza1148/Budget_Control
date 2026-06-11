@@ -1,13 +1,13 @@
 {
-  "name": "bur-cost-control-dashboard",
+  "name": "budget_control",
   "version": "1.0.0",
-  "description": "Bangkok University Cost Control Dashboard with Netlify Blobs Sync",
-  "main": "index.html",
+  "description": "Bangkok University Cost Control Dashboard with Cloudflare KV Sync",
   "type": "module",
   "scripts": {
-    "dev": "netlify dev"
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
   },
-  "dependencies": {
-    "@netlify/blobs": "^7.0.0"
+  "devDependencies": {
+    "wrangler": "^3.57.1"
   }
 }

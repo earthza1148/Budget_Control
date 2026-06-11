@@ -1,0 +1,11 @@
+name = "budget_control"
+main = "src/index.js"
+compatibility_date = "2024-04-01"
+
+[assets]
+directory = "./public"
+binding = "ASSETS"
+
+[[kv_namespaces]]
+binding = "DASHBOARD_KV"
+id = "PUT_YOUR_KV_NAMESPACE_ID_HERE"

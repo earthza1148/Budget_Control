@@ -2729,7 +2729,7 @@
     let currentFilter = 'all';
     let currentSearch = '';
 
-    // Load initial data from Netlify Blobs (runtime upload) or static data.xlsx, with fallback
+    // Load initial data from Cloudflare KV (runtime upload) or static data.xlsx, with fallback
     async function initDashboard() {
         let filename = "260604_BUR - Cost Report No.5 - Draft.xlsx";
         let updatetime = "";
@@ -2737,7 +2737,7 @@
         const statusPill = document.querySelector('.status-pill');
         statusPill.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังซิงค์ข้อมูลล่าสุดจากคลาวด์...';
         
-        // 1. Try fetching from Netlify Blobs (uploaded via UI)
+        // 1. Try fetching from Cloudflare KV (uploaded via UI)
         try {
             const response = await fetch('/api/get-data');
             if (response.ok) {
@@ -2765,7 +2765,7 @@
                 }
             }
         } catch (e) {
-            console.log("Failed to fetch from Netlify Blobs, trying data.xlsx...", e);
+            console.log("Failed to fetch from Cloudflare KV, trying data.xlsx...", e);
         }
         
         // 2. Try fetching static data.xlsx
@@ -2793,7 +2793,7 @@
                             const timeStr = dbTime.toLocaleTimeString('th-TH');
                             updatetime = `${dd}/${mm}/${yyyy} ${timeStr}`;
                         } else {
-                            updatetime = "ไฟล์ล่าสุดจาก Netlify";
+                            updatetime = "ไฟล์ล่าสุดจาก Cloudflare";
                         }
                         
                         localStorage.setItem('bu_cost_report_data', JSON.stringify(appData));
@@ -2819,7 +2819,7 @@
                 const result = await resJson.json();
                 appData = result;
                 filename = "data.json";
-                updatetime = "ไฟล์ล่าสุดจาก Netlify";
+                updatetime = "ไฟล์ล่าสุดจาก Cloudflare";
                 
                 localStorage.setItem('bu_cost_report_data', JSON.stringify(appData));
                 localStorage.setItem('bu_cost_report_filename', filename);
@@ -3893,7 +3893,7 @@
                     const timeStr = now.toLocaleTimeString('th-TH');
                     const formattedTime = `${dd}/${mm}/${yyyy} ${timeStr}`;
 
-                    // Post to Netlify Blobs via serverless function
+                    // Post to Cloudflare KV via serverless function
                     fetch('/api/upload-data', {
                         method: 'POST',
                         headers: {
@@ -3926,7 +3926,7 @@
                         updateDashboardView();
                     })
                     .catch(err => {
-                        console.error("Network error saving to Netlify Blobs:", err);
+                        console.error("Network error saving to Cloudflare KV:", err);
                         appData = parsed;
                         localStorage.setItem('bu_cost_report_data', JSON.stringify(appData));
                         localStorage.setItem('bu_cost_report_filename', file.name);
