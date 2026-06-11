@@ -1,10 +1,6 @@
 name = "budget-control"
-main = "src/index.js"
+pages_build_output_dir = "./public"
 compatibility_date = "2024-04-01"
-
-[assets]
-directory = "./public"
-binding = "ASSETS"
 
 [[kv_namespaces]]
 binding = "DASHBOARD_KV"
